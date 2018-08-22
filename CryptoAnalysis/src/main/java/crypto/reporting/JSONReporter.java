@@ -2,16 +2,18 @@ package crypto.reporting;
 
 import boomerang.BackwardQuery;
 import boomerang.Query;
-import boomerang.WeightedBoomerang;
 import boomerang.jimple.Statement;
 import boomerang.jimple.Val;
+
+import boomerang.results.ForwardBoomerangResults;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Table;
 import crypto.analysis.*;
 import crypto.analysis.errors.AbstractError;
+import crypto.extractparameter.CallSiteWithParamIndex;
+import crypto.extractparameter.ExtractedValue;
 import crypto.interfaces.ISLConstraint;
 import crypto.rules.CryptSLPredicate;
-import crypto.typestate.CallSiteWithParamIndex;
 import sync.pds.solver.nodes.Node;
 import typestate.TransitionFunction;
 
@@ -21,8 +23,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -49,7 +49,7 @@ public class JSONReporter extends CrySLAnalysisListener {
 	public void reportError(AbstractError error) {
 		Issue issue = makeIssueFromError(error);
 
-		String fileName = reportDir.getAbsolutePath().concat(FILE_PREFIX + issue.hash);
+		String fileName = reportDir.getAbsolutePath().concat(FILE_PREFIX + issue.title);
 		File reportFile = new File(fileName);
 
 		try(FileWriter writer = new FileWriter(reportFile, true)) {
@@ -60,21 +60,15 @@ public class JSONReporter extends CrySLAnalysisListener {
 	}
 
 	private Issue makeIssueFromError(AbstractError error){
-		int issueHash = Objects.hash(error.getErrorLocation(), error.getRule());
 		String title = error.getErrorLocation().toString() + error.getRule().getClassName();
 		String explanation = error.getRule().toString();
 		ArrayList<String> labels = new ArrayList<>();
 		labels.add(LABEL);
-		return new Issue(issueHash, title, explanation, labels);
+		return new Issue(title, explanation, labels);
 	}
 
 	@Override
 	public void ensuredPredicates(Table<Statement, Val, Set<EnsuredCryptSLPredicate>> existingPredicates, Table<Statement, IAnalysisSeed, Set<CryptSLPredicate>> expectedPredicates, Table<Statement, IAnalysisSeed, Set<CryptSLPredicate>> missingPredicates) {
-
-	}
-
-	@Override
-	public void predicateContradiction(Node<Statement, Val> node, Entry<CryptSLPredicate, CryptSLPredicate> disPair) {
 
 	}
 
@@ -89,22 +83,17 @@ public class JSONReporter extends CrySLAnalysisListener {
 	}
 
 	@Override
-	public void onSeedFinished(IAnalysisSeed seed, WeightedBoomerang<TransitionFunction> solver) {
-
+	public void onSeedFinished(IAnalysisSeed seed, ForwardBoomerangResults<TransitionFunction> analysisResults) {
+		//TODO create issue here if analysisResults show error
 	}
 
 	@Override
-	public void collectedValues(AnalysisSeedWithSpecification seed, Multimap<CallSiteWithParamIndex, Statement> collectedValues) {
+	public void collectedValues(AnalysisSeedWithSpecification seed, Multimap<CallSiteWithParamIndex, ExtractedValue> collectedValues) {
 
 	}
 
 	@Override
 	public void discoveredSeed(IAnalysisSeed curr) {
-
-	}
-
-	@Override
-	public void unevaluableConstraint(AnalysisSeedWithSpecification seed, ISLConstraint con, Statement location) {
 
 	}
 
@@ -158,7 +147,6 @@ public class JSONReporter extends CrySLAnalysisListener {
 	 */
 	public class Issue {
 
-		private int hash;
 		private String title;
 		/**
 		 * Explanation of the problem. Should include the line, so that
@@ -167,14 +155,13 @@ public class JSONReporter extends CrySLAnalysisListener {
 		private String body;
 		private List<String> labels;
 
-		public Issue(int hash, String title, String body, List<String> labels) {
-			this.hash = hash;
+		Issue(String title, String body, List<String> labels) {
 			this.title = title;
 			this.body = body;
 			this.labels = labels;
 		}
 
-		public String getJsonString(){
+		String getJsonString(){
 			String jsonInString = null;
 			try {
 				jsonInString = mapper.writeValueAsString(this);

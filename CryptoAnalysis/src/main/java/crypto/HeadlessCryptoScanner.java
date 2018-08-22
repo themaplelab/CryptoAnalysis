@@ -241,6 +241,10 @@ public abstract class HeadlessCryptoScanner {
 				if(csvOutputFile != null){
 					reporter.addReportListener(new CSVReporter(csvOutputFile,softwareIdentifier(),rules,callGraphWatch.elapsed(TimeUnit.MILLISECONDS)));
 				}
+				String jsonReportDir = getOutputFolder();
+				if(jsonReportDir != null){
+					reporter.addReportListener(new JSONReporter(jsonReportDir));
+				}
 				scanner.scan();
 			}
 		};
