@@ -2,62 +2,41 @@ package crypto.typestate;
 
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.beust.jcommander.internal.Lists;
-import com.beust.jcommander.internal.Sets;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Table;
-import com.google.common.collect.Table.Cell;
 
-import boomerang.BackwardQuery;
-import boomerang.Boomerang;
 import boomerang.BoomerangOptions;
-import boomerang.BoomerangTimeoutException;
+import boomerang.ForwardQuery;
 import boomerang.Query;
 import boomerang.WeightedForwardQuery;
 import boomerang.debugger.Debugger;
 import boomerang.jimple.Statement;
 import boomerang.jimple.Val;
+import boomerang.results.ForwardBoomerangResults;
 import crypto.analysis.CrySLResultsReporter;
 import crypto.analysis.IAnalysisSeed;
 import crypto.boomerang.CogniCryptBoomerangOptions;
-import crypto.boomerang.CogniCryptIntAndStringBoomerangOptions;
-import heros.utilities.DefaultValueMap;
 import ideal.IDEALAnalysis;
 import ideal.IDEALAnalysisDefinition;
 import ideal.IDEALSeedSolver;
 import ideal.IDEALSeedTimeout;
-import soot.Local;
 import soot.MethodOrMethodContext;
 import soot.Scene;
 import soot.SootMethod;
 import soot.Unit;
-import soot.Value;
 import soot.jimple.toolkits.callgraph.ReachableMethods;
 import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
 import soot.util.queue.QueueReader;
 import sync.pds.solver.WeightFunctions;
 import typestate.TransitionFunction;
-import wpds.impl.Weight.NoWeight;
 
 public abstract class ExtendedIDEALAnaylsis {
 
 	private FiniteStateMachineToTypestateChangeFunction changeFunction;
-	private Multimap<CallSiteWithParamIndex, Statement> collectedValues = HashMultimap.create();
-	private Set<Statement> invokedMethodsOnInstance = Sets.newHashSet();
-	private DefaultValueMap<AdditionalBoomerangQuery, AdditionalBoomerangQuery> additionalBoomerangQuery = new DefaultValueMap<AdditionalBoomerangQuery, AdditionalBoomerangQuery>() {
-		@Override
-		protected AdditionalBoomerangQuery createItem(AdditionalBoomerangQuery key) {
-			return key;
-		}
-	};
 	private final IDEALAnalysis<TransitionFunction> analysis;
-	private IDEALSeedSolver<TransitionFunction> solver;
+	private ForwardBoomerangResults<TransitionFunction> results;
 	
 	public ExtendedIDEALAnaylsis(){
 		analysis = new IDEALAnalysis<TransitionFunction>(new IDEALAnalysisDefinition<TransitionFunction>() {
@@ -82,8 +61,8 @@ public abstract class ExtendedIDEALAnaylsis {
 			}
 
 			@Override
-			public Debugger<TransitionFunction> debugger() {
-				return ExtendedIDEALAnaylsis.this.debugger();
+			public Debugger<TransitionFunction> debugger(IDEALSeedSolver<TransitionFunction> solver) {
+				return ExtendedIDEALAnaylsis.this.debugger(solver);
 			}
 			@Override
 			public BoomerangOptions boomerangOptions() {
@@ -94,128 +73,31 @@ public abstract class ExtendedIDEALAnaylsis {
 
 	private FiniteStateMachineToTypestateChangeFunction getOrCreateTypestateChangeFunction() {
 		if (this.changeFunction == null)
-			this.changeFunction = new FiniteStateMachineToTypestateChangeFunction(getStateMachine(), this);
+			this.changeFunction = new FiniteStateMachineToTypestateChangeFunction(getStateMachine());
 		return this.changeFunction;
 	}
 
 	public abstract SootBasedStateMachineGraph getStateMachine();
 
-	public IDEALSeedSolver<TransitionFunction> run(Query query) {
-		getOrCreateTypestateChangeFunction().injectQueryForSeed(query.stmt());
-
+	public void run(ForwardQuery query) {
 		CrySLResultsReporter reports = analysisListener();
 		try {
-			solver = analysis.run(query);
+			results = analysis.run(query);
 		} catch (IDEALSeedTimeout e){
-			System.err.println(e);
-			solver = (IDEALSeedSolver<TransitionFunction>) e.getSolver();
+//			System.err.println(e);
+//			solver = (IDEALSeedSolver<TransitionFunction>) e.getSolver();
 			if (reports != null && query instanceof IAnalysisSeed) {
 				reports.onSeedTimeout(((IAnalysisSeed)query).asNode());
 			}
 		}
-		for (AdditionalBoomerangQuery q : additionalBoomerangQuery.keySet()) {
-			if (reports != null) {
-				reports.boomerangQueryStarted(query, q);
-			}
-			q.solve();
-			if (reports != null) {
-				reports.boomerangQueryFinished(query, q);
-			}
-		}
-		return solver;
 	}
 
-
-	public void addQueryAtCallsite(final String varNameInSpecification, final Statement stmt, final int index) {
-		if(!stmt.isCallsite())
-			return;
-		Value parameter = stmt.getUnit().get().getInvokeExpr().getArg(index);
-		if (!(parameter instanceof Local)) {
-			collectedValues.put(
-					new CallSiteWithParamIndex(stmt, new Val(parameter, stmt.getMethod()), index, varNameInSpecification), stmt);
-			return;
-		}
-		AdditionalBoomerangQuery query = additionalBoomerangQuery
-				.getOrCreate(new AdditionalBoomerangQuery(stmt, new Val((Local) parameter, stmt.getMethod())));
-		query.addListener(new QueryListener() {
-			@Override
-			public void solved(AdditionalBoomerangQuery q, Table<Statement, Val, NoWeight> res) {
-				for (Cell<Statement, Val, NoWeight> v : res.cellSet()) {
-					collectedValues.put(new CallSiteWithParamIndex(stmt, v.getColumnKey(), index, varNameInSpecification),
-							v.getRowKey());
-				}
-			}
-		});
-	}
 
 	protected abstract BiDiInterproceduralCFG<Unit, SootMethod> icfg();
-	protected abstract Debugger<TransitionFunction> debugger();
-
-	public void addAdditionalBoomerangQuery(AdditionalBoomerangQuery q, QueryListener listener) {
-		AdditionalBoomerangQuery query = additionalBoomerangQuery.getOrCreate(q);
-		query.addListener(listener);
-	}
-
-	public class AdditionalBoomerangQuery extends BackwardQuery {
-		public AdditionalBoomerangQuery(Statement stmt, Val variable) {
-			super(stmt, variable);
-		}
-
-		protected boolean solved;
-		private List<QueryListener> listeners = Lists.newLinkedList();
-		private Table<Statement, Val, NoWeight> res;
-
-		public void solve() {
-			Boomerang boomerang = new Boomerang(new CogniCryptIntAndStringBoomerangOptions()) {
-				@Override
-				public BiDiInterproceduralCFG<Unit, SootMethod> icfg() {
-					return ExtendedIDEALAnaylsis.this.icfg();
-				}
-			};
-			try{
-				boomerang.solve(this);
-			} catch(BoomerangTimeoutException e){
-			}
-			boomerang.debugOutput();
-			// log("Solving query "+ accessGraph + " @ " + stmt);
-			res = boomerang.getResults(this);
-			for (QueryListener l : Lists.newLinkedList(listeners)) {
-				l.solved(this, res);
-			}
-			solved = true;
-		}
-
-		public void addListener(QueryListener q) {
-			if (solved) {
-				q.solved(this, res);
-				return;
-			}
-			listeners.add(q);
-		}
-
-		private ExtendedIDEALAnaylsis getOuterType() {
-			return ExtendedIDEALAnaylsis.this;
-		}
-	}
-
-	public static interface QueryListener {
-		public void solved(AdditionalBoomerangQuery q, Table<Statement, Val, NoWeight> res);
-	}
-
-	public Multimap<CallSiteWithParamIndex, Statement> getCollectedValues() {
-		return collectedValues;
-	}
+	protected abstract Debugger<TransitionFunction> debugger(IDEALSeedSolver<TransitionFunction> solver);
 
 	public void log(String string) {
 		// System.out.println(string);
-	}
-
-	public Collection<Statement> getInvokedMethodOnInstance() {
-		return invokedMethodsOnInstance;
-	}
-
-	public void methodInvokedOnInstance(Statement method) {
-		invokedMethodsOnInstance.add(method);
 	}
 
 	public abstract CrySLResultsReporter analysisListener();
@@ -248,19 +130,23 @@ public abstract class ExtendedIDEALAnaylsis {
         return seeds;
     }
 
-	public Table<Statement, Val, TransitionFunction> getResults(IAnalysisSeed seed) {
-		return solver.getPhase2Solver().getResults(seed);
-	}
 
-	public Map<WeightedForwardQuery<TransitionFunction>, IDEALSeedSolver<TransitionFunction>> run() {
-		Map<WeightedForwardQuery<TransitionFunction>, IDEALSeedSolver<TransitionFunction>> seedToSolver = Maps.newHashMap();
+	public Map<WeightedForwardQuery<TransitionFunction>, ForwardBoomerangResults<TransitionFunction>> run() {
+		Map<WeightedForwardQuery<TransitionFunction>, ForwardBoomerangResults<TransitionFunction>> seedToSolver = Maps.newHashMap();
 		for (Query s : computeInitialSeeds()) {
 			if(s instanceof WeightedForwardQuery){
-				WeightedForwardQuery seed = (WeightedForwardQuery) s;
-				seedToSolver.put(seed, run((WeightedForwardQuery<TransitionFunction>)seed));
+				WeightedForwardQuery<TransitionFunction> seed = (WeightedForwardQuery<TransitionFunction>) s;
+				run((WeightedForwardQuery<TransitionFunction>)seed);
+				if(getResults() != null){
+					seedToSolver.put(seed, getResults());
+				}
 			}
 		}
 		return seedToSolver;
+	}
+
+	public ForwardBoomerangResults<TransitionFunction> getResults() {
+		return results;
 	}
 
 }

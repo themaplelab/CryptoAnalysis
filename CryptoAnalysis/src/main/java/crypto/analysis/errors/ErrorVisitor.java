@@ -7,4 +7,6 @@ public interface ErrorVisitor {
 	public void visit(TypestateError typestateError);
 	public void visit(RequiredPredicateError predicateError);
 	public void visit(ImpreciseValueExtractionError predicateError);
+	public void visit(NeverTypeOfError predicateError);
+	public void visit(PredicateContradictionError predicateContradictionError);
 }

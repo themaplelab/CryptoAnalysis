@@ -2,16 +2,16 @@ package crypto.analysis;
 
 import com.google.common.collect.Multimap;
 
-import boomerang.jimple.Statement;
+import crypto.extractparameter.CallSiteWithParamIndex;
+import crypto.extractparameter.ExtractedValue;
 import crypto.rules.CryptSLPredicate;
-import crypto.typestate.CallSiteWithParamIndex;
 
 public class EnsuredCryptSLPredicate {
 
 	private final CryptSLPredicate predicate;
-	private final Multimap<CallSiteWithParamIndex, Statement> parametersToValues;
+	private final Multimap<CallSiteWithParamIndex, ExtractedValue> parametersToValues;
 
-	public EnsuredCryptSLPredicate(CryptSLPredicate predicate, Multimap<CallSiteWithParamIndex, Statement> parametersToValues2) {
+	public EnsuredCryptSLPredicate(CryptSLPredicate predicate, Multimap<CallSiteWithParamIndex, ExtractedValue> parametersToValues2) {
 		this.predicate = predicate;
 		parametersToValues = parametersToValues2;
 	}
@@ -21,7 +21,7 @@ public class EnsuredCryptSLPredicate {
 	}
 	
 
-	public Multimap<CallSiteWithParamIndex, Statement> getParametersToValues() {
+	public Multimap<CallSiteWithParamIndex, ExtractedValue> getParametersToValues() {
 		return  parametersToValues;
 	}
 	

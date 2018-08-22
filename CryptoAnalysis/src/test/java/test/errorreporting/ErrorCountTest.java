@@ -1,11 +1,14 @@
 package test.errorreporting;
 
+import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import test.UsagePatternTestingFramework;
@@ -13,6 +16,7 @@ import test.assertions.Assertions;
 
 public class ErrorCountTest extends UsagePatternTestingFramework {
 
+	@Ignore
 	@Test
 	public void CipherPredicateCountTest1() throws GeneralSecurityException {
 		KeyGenerator keygen = KeyGenerator.getInstance("AES");
@@ -26,7 +30,7 @@ public class ErrorCountTest extends UsagePatternTestingFramework {
 		Assertions.constraintErrors(1);
 		cCipher.getIV();
 	}
-
+	@Ignore
 	@Test
 	public void CipherPredicateCountTest2() throws GeneralSecurityException {
 		KeyGenerator keygen = KeyGenerator.getInstance("DES");
@@ -43,6 +47,7 @@ public class ErrorCountTest extends UsagePatternTestingFramework {
 	}
 
 	@Test
+	@Ignore
 	public void CipherPredicateCountTest3() throws GeneralSecurityException {
 		KeyGenerator keyGen = KeyGenerator.getInstance("AES");
 		keyGen.init(129);
@@ -56,6 +61,15 @@ public class ErrorCountTest extends UsagePatternTestingFramework {
 		Assertions.notHasEnsuredPredicate(key);
 		Assertions.predicateErrors(1);
 		Assertions.constraintErrors(1);
+	}
 
+	@Test
+	@Ignore
+	public void SecretKeySpecTest1() throws GeneralSecurityException, UnsupportedEncodingException {
+		SecretKeySpec key = new SecretKeySpec("keyMaterial".getBytes("UTF-8"), "AES");
+		Assertions.notHasEnsuredPredicate(key);
+		Assertions.predicateErrors(1);
+		//Should get a unsatisfied-predicate error either for randomized or for SecretKeySpec
+		//The former semms to happen for the test case, but not when applied to regular programs
 	}
 }

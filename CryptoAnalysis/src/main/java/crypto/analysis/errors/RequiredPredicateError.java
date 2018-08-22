@@ -1,21 +1,19 @@
 package crypto.analysis.errors;
 
-import com.google.common.collect.Multimap;
-
 import boomerang.jimple.Statement;
+import crypto.extractparameter.CallSiteWithExtractedValue;
 import crypto.rules.CryptSLPredicate;
 import crypto.rules.CryptSLRule;
-import crypto.typestate.CallSiteWithParamIndex;
 
 public class RequiredPredicateError extends AbstractError{
 
 	private CryptSLPredicate contradictedPredicate;
-	private Multimap<CallSiteWithParamIndex, Statement> extractedValues;
+	private CallSiteWithExtractedValue extractedValues;
 
-	public RequiredPredicateError(CryptSLPredicate contradictedPredicate, Statement location, CryptSLRule rule, Multimap<CallSiteWithParamIndex, Statement> extractedValues) {
+	public RequiredPredicateError(CryptSLPredicate contradictedPredicate, Statement location, CryptSLRule rule, CallSiteWithExtractedValue multimap) {
 		super(location, rule);
 		this.contradictedPredicate = contradictedPredicate;
-		this.extractedValues = extractedValues;
+		this.extractedValues = multimap;
 	}
 
 	public CryptSLPredicate getContradictedPredicate() {
@@ -26,7 +24,15 @@ public class RequiredPredicateError extends AbstractError{
 		visitor.visit(this);
 	}
 
-	public Multimap<CallSiteWithParamIndex, Statement> getExtractedValues() {
+	public CallSiteWithExtractedValue getExtractedValues() {
 		return extractedValues;
+	}
+
+	@Override
+	public String toErrorMarkerString() {
+		String msg = extractedValues.toString();
+		msg += " was not properly ";
+		msg += getContradictedPredicate().getPredName();
+		return msg;
 	}
 }

@@ -3,14 +3,13 @@ package crypto.analysis;
 import java.util.Set;
 
 import com.beust.jcommander.internal.Lists;
-import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Sets;
-import com.google.common.collect.Table;
 import com.google.common.collect.Table.Cell;
 
 import boomerang.debugger.Debugger;
 import boomerang.jimple.Statement;
 import boomerang.jimple.Val;
+import boomerang.results.ForwardBoomerangResults;
 import crypto.rules.StateMachineGraph;
 import crypto.rules.StateNode;
 import crypto.rules.TransitionEdge;
@@ -25,7 +24,7 @@ import typestate.TransitionFunction;
 
 public class AnalysisSeedWithEnsuredPredicate extends IAnalysisSeed{
 
-	private Table<Statement, Val, TransitionFunction> analysisResults = HashBasedTable.create();
+	private ForwardBoomerangResults<TransitionFunction> analysisResults;
 	private Set<EnsuredCryptSLPredicate> ensuredPredicates = Sets.newHashSet();
 	private ExtendedIDEALAnaylsis problem;
 	private boolean analyzed;
@@ -38,11 +37,11 @@ public class AnalysisSeedWithEnsuredPredicate extends IAnalysisSeed{
 	public void execute() {
 		cryptoScanner.getAnalysisListener().seedStarted(this);
 		ExtendedIDEALAnaylsis solver = getOrCreateAnalysis();
-		IDEALSeedSolver<TransitionFunction> s = solver.run(this);
-		analysisResults = solver.getResults(this);
+		solver.run(this);
+		analysisResults = solver.getResults();
 		for(EnsuredCryptSLPredicate pred : ensuredPredicates)
 			ensurePredicates(pred);
-		cryptoScanner.getAnalysisListener().onSeedFinished(this, s.getPhase2Solver());
+		cryptoScanner.getAnalysisListener().onSeedFinished(this, analysisResults);
 		analyzed = true;
 	}
 
@@ -50,8 +49,8 @@ public class AnalysisSeedWithEnsuredPredicate extends IAnalysisSeed{
 		if(analysisResults == null)
 			return;
 
-		for(Cell<Statement, Val, TransitionFunction> c : analysisResults.cellSet()){
-			cryptoScanner.addNewPred(this,c.getRowKey(), c.getColumnKey(), pred);
+		for(Cell<Statement, Val, TransitionFunction> c : analysisResults.asStatementValWeightTable().cellSet()){
+			predicateHandler.addNewPred(this,c.getRowKey(), c.getColumnKey(), pred);
 		}
 	}
 
@@ -85,8 +84,8 @@ public class AnalysisSeedWithEnsuredPredicate extends IAnalysisSeed{
 			
 
 			@Override
-			protected Debugger<TransitionFunction> debugger() {
-				return cryptoScanner.debugger();
+			protected Debugger<TransitionFunction> debugger(IDEALSeedSolver<TransitionFunction> solver) {
+				return cryptoScanner.debugger(solver,AnalysisSeedWithEnsuredPredicate.this);
 			}
 		};
 		return problem;
@@ -101,10 +100,5 @@ public class AnalysisSeedWithEnsuredPredicate extends IAnalysisSeed{
 	@Override
 	public String toString() {
 		return "AnalysisSeedWithEnsuredPredicate:"+this.asNode() +" " + ensuredPredicates; 
-	}
-
-	@Override
-	public boolean contradictsNegations() {
-		return false;
 	}
 }

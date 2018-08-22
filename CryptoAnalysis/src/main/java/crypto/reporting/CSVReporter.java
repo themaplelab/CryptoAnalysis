@@ -23,9 +23,9 @@ import com.google.common.collect.Table.Cell;
 
 import boomerang.BackwardQuery;
 import boomerang.Query;
-import boomerang.WeightedBoomerang;
 import boomerang.jimple.Statement;
 import boomerang.jimple.Val;
+import boomerang.results.ForwardBoomerangResults;
 import crypto.analysis.AnalysisSeedWithSpecification;
 import crypto.analysis.CrySLAnalysisListener;
 import crypto.analysis.EnsuredCryptSLPredicate;
@@ -35,12 +35,14 @@ import crypto.analysis.errors.ConstraintError;
 import crypto.analysis.errors.ForbiddenMethodError;
 import crypto.analysis.errors.ImpreciseValueExtractionError;
 import crypto.analysis.errors.IncompleteOperationError;
+import crypto.analysis.errors.NeverTypeOfError;
 import crypto.analysis.errors.RequiredPredicateError;
 import crypto.analysis.errors.TypestateError;
+import crypto.extractparameter.CallSiteWithParamIndex;
+import crypto.extractparameter.ExtractedValue;
 import crypto.interfaces.ISLConstraint;
 import crypto.rules.CryptSLPredicate;
 import crypto.rules.CryptSLRule;
-import crypto.typestate.CallSiteWithParamIndex;
 import soot.MethodOrMethodContext;
 import soot.Scene;
 import soot.SootMethod;
@@ -88,6 +90,7 @@ public class CSVReporter extends CrySLAnalysisListener {
 		put(Headers.CallGraphReachableMethods,callgraphReachableMethods);
 		put(Headers.CallGraphReachableMethods_ActiveBodies,callgraphReachableMethodsWithActiveBodies);
 		addDynamicHeader(ConstraintError.class.getSimpleName());
+		addDynamicHeader(NeverTypeOfError.class.getSimpleName());
 		addDynamicHeader(TypestateError.class.getSimpleName());
 		addDynamicHeader(RequiredPredicateError.class.getSimpleName());
 		addDynamicHeader(IncompleteOperationError.class.getSimpleName());
@@ -235,14 +238,8 @@ public class CSVReporter extends CrySLAnalysisListener {
 	}
 
 	@Override
-	public void predicateContradiction(Node<Statement, Val> node, Entry<CryptSLPredicate, CryptSLPredicate> disPair) {
-		
-	}
-
-	@Override
 	public void checkedConstraints(AnalysisSeedWithSpecification analysisSeedWithSpecification,
 			Collection<ISLConstraint> relConstraints) {
-		
 	}
 
 	@Override
@@ -251,25 +248,20 @@ public class CSVReporter extends CrySLAnalysisListener {
 	}
 
 	@Override
-	public void onSeedFinished(IAnalysisSeed seed, WeightedBoomerang<TransitionFunction> solver) {
-		dataflowReachableMethods.addAll(solver.getStats().getCallVisitedMethods());
+	public void onSeedFinished(IAnalysisSeed seed, ForwardBoomerangResults<TransitionFunction> forwardResults) {
+		dataflowReachableMethods.addAll(forwardResults.getStats().getCallVisitedMethods());
 	}
 
 
 	@Override
 	public void collectedValues(AnalysisSeedWithSpecification seed,
-			Multimap<CallSiteWithParamIndex, Statement> collectedValues) {
+			Multimap<CallSiteWithParamIndex, ExtractedValue> collectedValues) {
 		
 	}
 
 	@Override
 	public void discoveredSeed(IAnalysisSeed curr) {
 		seeds++;
-	}
-
-	@Override
-	public void unevaluableConstraint(AnalysisSeedWithSpecification seed, ISLConstraint con, Statement location) {
-		
 	}
 
 }

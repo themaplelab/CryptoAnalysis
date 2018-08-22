@@ -8,12 +8,14 @@ import java.util.Set;
 
 import com.google.common.collect.Lists;
 
-import boomerang.Query;
 import boomerang.WeightedForwardQuery;
 import boomerang.debugger.Debugger;
 import boomerang.debugger.IDEVizDebugger;
 import boomerang.jimple.Val;
+import boomerang.results.ForwardBoomerangResults;
+import crypto.Utils;
 import crypto.analysis.CrySLResultsReporter;
+import crypto.rules.CryptSLRule;
 import crypto.rules.CryptSLRuleReader;
 import crypto.typestate.CryptSLMethodToSootMethod;
 import crypto.typestate.ExtendedIDEALAnaylsis;
@@ -53,7 +55,7 @@ public abstract class IDEALCrossingTestingFramework extends AbstractTestingFrame
 			
 			@Override
 			public SootBasedStateMachineGraph getStateMachine() {
-				return new SootBasedStateMachineGraph(CryptSLRuleReader.readFromFile(new File(RESOURCE_PATH + getCryptSLFile())).getUsagePattern());
+				return new SootBasedStateMachineGraph(getRule().getUsagePattern());
 			}
 			
 			@Override
@@ -62,12 +64,23 @@ public abstract class IDEALCrossingTestingFramework extends AbstractTestingFrame
 			}
 			
 			@Override
-			protected Debugger<TransitionFunction> debugger() {
+			protected Debugger<TransitionFunction> debugger(IDEALSeedSolver<TransitionFunction> solver) {
 				return getDebugger();
 			}
 		};
 	}
 
+	protected CryptSLRule getRule() {
+		return CryptSLRuleReader.readFromFile(new File(RESOURCE_PATH + getCryptSLFile()));
+	}
+
+	@Override
+	public List<String> excludedPackages() {
+		List<String> excludedPackages = super.excludedPackages();
+		excludedPackages.add(Utils.getFullyQualifiedName(getRule()));
+		return excludedPackages;
+	}
+	
 	protected Debugger<TransitionFunction> getDebugger() {
 		if(debugger == null)
 			debugger =  new IDEVizDebugger<>(ideVizFile, icfg);
@@ -81,13 +94,10 @@ public abstract class IDEALCrossingTestingFramework extends AbstractTestingFrame
 				icfg = new JimpleBasedInterproceduralCFG(true);
 				Set<Assertion> expectedResults = parseExpectedQueryResults(sootTestMethod);
 				TestingResultReporter testingResultReporter = new TestingResultReporter(expectedResults);
-				Map<WeightedForwardQuery<TransitionFunction>, IDEALSeedSolver<TransitionFunction>> seedToSolvers = executeAnalysis();
+				Map<WeightedForwardQuery<TransitionFunction>, ForwardBoomerangResults<TransitionFunction>> seedToSolvers = executeAnalysis();
 				for(WeightedForwardQuery<TransitionFunction> seed : seedToSolvers.keySet()){
-					for(Query q : seedToSolvers.get(seed).getPhase2Solver().getSolvers().keySet()){
-						if(q.equals(seed)){
-							testingResultReporter.onSeedFinished(q.asNode(), seedToSolvers.get(seed).getPhase2Solver().getSolvers().getOrCreate(q));
-						}
-					}
+					ForwardBoomerangResults<TransitionFunction> res = seedToSolvers.get(seed);
+					testingResultReporter.onSeedFinished(seed.asNode(), res.asStatementValWeightTable());
 				}
 				List<Assertion> unsound = Lists.newLinkedList();
 				List<Assertion> imprecise = Lists.newLinkedList();
@@ -110,7 +120,7 @@ public abstract class IDEALCrossingTestingFramework extends AbstractTestingFrame
 		};
 	}
 
-	protected Map<WeightedForwardQuery<TransitionFunction>, IDEALSeedSolver<TransitionFunction>> executeAnalysis() {
+	protected Map<WeightedForwardQuery<TransitionFunction>, ForwardBoomerangResults<TransitionFunction>> executeAnalysis() {
 		CryptSLMethodToSootMethod.reset();
 		ExtendedIDEALAnaylsis analysis = IDEALCrossingTestingFramework.this.createAnalysis();
 		return analysis.run();

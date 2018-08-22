@@ -32,10 +32,18 @@ public class CryptSLRule implements java.io.Serializable {
 		usagePattern = _usagePattern;
 		constraints = _constraints;
 		predicates = _predicates;
-		System.out.println(this);
 	}
 	
 	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof CryptSLRule) {
+			return ((CryptSLRule) obj).getClassName().equals(className);
+		} 
+		return false;
+	}
+
+
 	public boolean isLeafRule() {
 		for (ISLConstraint con : constraints) {
 			if (con instanceof CryptSLPredicate) {
@@ -45,6 +53,12 @@ public class CryptSLRule implements java.io.Serializable {
 		return true;
 	}
 	
+	@Override
+	public int hashCode() {
+		return 31 * className.hashCode();
+	}
+
+
 	/**
 	 * @return the className
 	 */
