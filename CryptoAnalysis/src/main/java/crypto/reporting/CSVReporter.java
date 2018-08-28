@@ -23,6 +23,7 @@ import com.google.common.collect.Table.Cell;
 
 import boomerang.BackwardQuery;
 import boomerang.Query;
+import boomerang.Util;
 import boomerang.jimple.Statement;
 import boomerang.jimple.Val;
 import boomerang.results.BackwardBoomerangResults;
@@ -67,9 +68,10 @@ public class CSVReporter extends CrySLAnalysisListener {
 	private int seedTimeouts;
 	private int boomerangQueries;
 	private int boomerangTimeouts;
+	private long maxMemory;
 	private enum Headers{
 		SoftwareID,SeedObjectCount,CallGraphTime_ms,CryptoAnalysisTime_ms,CallGraphReachableMethods,
-		CallGraphReachableMethods_ActiveBodies,DataflowVisitedMethod, Timeouts, BoomerangQueries, Timeouts_BoomerangQueries
+		CallGraphReachableMethods_ActiveBodies,DataflowVisitedMethod, Timeouts, BoomerangQueries, Timeouts_BoomerangQueries,MaxMemory,NoOfClasses, ICFGEdges
 	}
 
 	public CSVReporter(String csvReportFileName, String softwareId,  List<CryptSLRule> rules, long callGraphConstructionTime) {
@@ -118,12 +120,16 @@ public class CSVReporter extends CrySLAnalysisListener {
 	@Override
 	public void afterAnalysis() {
 		analysisTime.stop();
+		maxMemory = Math.max(maxMemory,Util.getReallyUsedMemory());
 		put(Headers.DataflowVisitedMethod, dataflowReachableMethods.size());
 		put(Headers.CryptoAnalysisTime_ms, analysisTime.elapsed(TimeUnit.MILLISECONDS));
 		put(Headers.SeedObjectCount, seeds);
 		put(Headers.Timeouts, seedTimeouts);
 		put(Headers.BoomerangQueries, boomerangQueries);
 		put(Headers.Timeouts_BoomerangQueries, boomerangTimeouts);
+		put(Headers.MaxMemory, maxMemory);
+		put(Headers.NoOfClasses, Scene.v().getClasses().size());
+		put(Headers.ICFGEdges, Util.getICFGEdges());
 		Table<Class, CryptSLRule, Integer> errorTable = HashBasedTable.create(); 
 		for(AbstractError err : errors){
 			Integer integer = errorTable.get(err.getClass(), err.getRule());
@@ -271,6 +277,7 @@ public class CSVReporter extends CrySLAnalysisListener {
 
 	@Override
 	public void discoveredSeed(IAnalysisSeed curr) {
+		maxMemory = Math.max(maxMemory,Util.getReallyUsedMemory());
 		seeds++;
 	}
 
