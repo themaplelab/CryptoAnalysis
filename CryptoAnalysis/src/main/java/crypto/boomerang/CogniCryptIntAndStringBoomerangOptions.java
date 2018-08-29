@@ -51,4 +51,9 @@ public class CogniCryptIntAndStringBoomerangOptions extends IntAndStringBoomeran
 			return super.statsFactory();
 		return new CSVBoomerangStatsWriter(queryReportFile);
 	}
+
+    @Override
+    public int analysisTimeoutMS() {
+    	return 5000;
+    }
 }
