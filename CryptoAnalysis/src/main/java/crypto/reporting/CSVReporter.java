@@ -69,9 +69,10 @@ public class CSVReporter extends CrySLAnalysisListener {
 	private int boomerangQueries;
 	private int boomerangTimeouts;
 	private long maxMemory;
+	private long maxMemoryBefore;
 	private enum Headers{
 		SoftwareID,SeedObjectCount,CallGraphTime_ms,CryptoAnalysisTime_ms,CallGraphReachableMethods,
-		CallGraphReachableMethods_ActiveBodies,DataflowVisitedMethod, Timeouts, BoomerangQueries, Timeouts_BoomerangQueries,MaxMemory,NoOfClasses, ICFGEdges
+		CallGraphReachableMethods_ActiveBodies,DataflowVisitedMethod, Timeouts, BoomerangQueries, Timeouts_BoomerangQueries,MaxMemoryBefore,MaxMemoryAfter,MaxMemoryDiff,NoOfClasses, ICFGEdges
 	}
 
 	public CSVReporter(String csvReportFileName, String softwareId,  List<CryptSLRule> rules, long callGraphConstructionTime) {
@@ -81,6 +82,8 @@ public class CSVReporter extends CrySLAnalysisListener {
 		QueueReader<MethodOrMethodContext> listener = reachableMethods.listener();
 		Set<SootMethod> visited = Sets.newHashSet();
 		int callgraphReachableMethodsWithActiveBodies = 0;
+		maxMemoryBefore = Util.getReallyUsedMemory();
+		maxMemory = maxMemoryBefore;
 		while (listener.hasNext()) {
 			MethodOrMethodContext next = listener.next();
 			visited.add(next.method());
@@ -127,7 +130,9 @@ public class CSVReporter extends CrySLAnalysisListener {
 		put(Headers.Timeouts, seedTimeouts);
 		put(Headers.BoomerangQueries, boomerangQueries);
 		put(Headers.Timeouts_BoomerangQueries, boomerangTimeouts);
-		put(Headers.MaxMemory, maxMemory);
+		put(Headers.MaxMemoryAfter, maxMemory);
+		put(Headers.MaxMemoryBefore, maxMemoryBefore);
+		put(Headers.MaxMemoryDiff, maxMemory - maxMemoryBefore);
 		put(Headers.NoOfClasses, Scene.v().getClasses().size());
 		put(Headers.ICFGEdges, Util.getICFGEdges());
 		Table<Class, CryptSLRule, Integer> errorTable = HashBasedTable.create(); 
