@@ -55,6 +55,8 @@ public abstract class HeadlessCryptoScanner {
 	private static Stopwatch callGraphWatch;
 	private static CommandLine options;
 	private static boolean PRE_ANALYSIS = false;
+        private static boolean cacheSrc = false;
+        private	static boolean cacheSrcOnly = false;
 	private static List<CryptSLRule> rules;
 
 	public static enum CG {
@@ -70,6 +72,18 @@ public abstract class HeadlessCryptoScanner {
 		CommandLineParser parser = new DefaultParser();
 		options = parser.parse(new HeadlessCryptoScannerOptions(), args);
 
+		if(options.hasOption("src-prec")){
+		    String val = options.getOptionValue("src-prec");
+		    if (val.equalsIgnoreCase("cache")){
+			cacheSrc = true;
+		    }else if (val.equalsIgnoreCase("only-cache")){
+			cacheSrcOnly = true;
+		    }
+		    else{
+			System.out.println("Unrecognized src-prec option");
+		    }
+		}
+		
 		if (options.hasOption("rulesDir")) {
 			String resourcesPath = options.getOptionValue("rulesDir");
 			rules = CrySLRulesetSelector.makeFromPath(new File(resourcesPath));
@@ -284,6 +298,13 @@ public abstract class HeadlessCryptoScanner {
 		default:
 			throw new RuntimeException("No call graph option selected!");
 		}
+
+		if(cacheSrc){
+		    Options.v().set_src_prec(Options.src_prec_cache);
+		}else if(cacheSrcOnly){
+		    Options.v().set_src_prec(Options.src_prec_only_cache);
+		}
+		
 		Options.v().set_output_format(Options.output_format_none);
 		Options.v().set_no_bodies_for_excluded(true);
 		Options.v().set_allow_phantom_refs(true);
