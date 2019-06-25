@@ -212,6 +212,11 @@
 		</plugins>
 	</build>
 	<dependencies>
+	  <dependency>
+            <groupId>soot.local</groupId>
+            <artifactId>localsoot</artifactId>
+            <version>4.5</version>
+	    </dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
@@ -316,6 +321,13 @@
 	</distributionManagement>
 
 	<repositories>
+
+	  <repository>
+		    <id>local-soot</id>
+                    <url>file:///root/soot/</url>
+          </repository>
+
+	  
 		<repository>
 			<id>soot-snapshot</id>
 			<name>soot snapshots</name>
