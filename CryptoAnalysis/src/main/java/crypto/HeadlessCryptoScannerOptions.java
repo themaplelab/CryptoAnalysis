@@ -11,6 +11,11 @@ public class HeadlessCryptoScannerOptions extends Options {
 	private static final long serialVersionUID = 1L;
 
 	public HeadlessCryptoScannerOptions() {
+
+	    Option srcprec = Option.builder().longOpt("src-prec").hasArg()
+                                .desc("Select an optional preferred source for the analysis. (cache, only-cache)").build();
+	    addOption(srcprec);
+	    
 		Option cg = Option.builder().longOpt("cg").hasArg()
 				.desc("Select the call graph for the analysis. (CHA, SPARK-LIBRARY, SPARK)").build();
 		addOption(cg);
