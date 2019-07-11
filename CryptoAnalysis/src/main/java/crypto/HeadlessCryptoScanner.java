@@ -58,7 +58,9 @@ public abstract class HeadlessCryptoScanner {
         private static boolean cacheSrc = false;
         private	static boolean cacheSrcOnly = false;
 	private static List<CryptSLRule> rules;
-
+    private static boolean useProcessDir = true;
+    private static String argClass;
+    
 	public static enum CG {
 		CHA, SPARK_LIBRARY, SPARK
 	}
@@ -72,6 +74,11 @@ public abstract class HeadlessCryptoScanner {
 		CommandLineParser parser = new DefaultParser();
 		options = parser.parse(new HeadlessCryptoScannerOptions(), args);
 
+		if(options.hasOption("arg-class")){
+		    argClass = options.getOptionValue("arg-class");
+		    useProcessDir = false;
+		}
+		
 		if(options.hasOption("src-prec")){
 		    String val = options.getOptionValue("src-prec");
 		    if (val.equalsIgnoreCase("cache")){
@@ -166,6 +173,10 @@ public abstract class HeadlessCryptoScanner {
 		}
 		if (!PRE_ANALYSIS || hasSeeds()) {
 			System.out.println("Using call graph algorithm " + callGraphAlogrithm());
+
+			System.out.println("Setup as follows: ");
+			this.toString();
+			
 			initializeSootWithEntryPointAllReachable(true);
 			long elapsed = stopwatch.elapsed(TimeUnit.SECONDS);
 			System.out.println("Analysis soot setup done after " + elapsed +" seconds");
@@ -208,7 +219,11 @@ public abstract class HeadlessCryptoScanner {
 	public String toString() {
 		String s = "HeadllessCryptoScanner: \n";
 		s += "\tSoftwareIdentifier: "+ softwareIdentifier() +"\n";
-		s += "\tApplicationClassPath: "+ applicationClassPath() +"\n";
+		if(useProcessDir){
+		    s += "\tApplicationClassPath: "+ applicationClassPath() +"\n";
+		}else{
+		    s += "\tApplicationClassPath: "+ argClass() +"\n";
+		}
 		s += "\tSootClassPath: "+ sootClassPath() +"\n\n";
 		return s;
 	}
@@ -311,7 +326,12 @@ public abstract class HeadlessCryptoScanner {
 		Options.v().set_keep_line_number(true);
 		Options.v().set_prepend_classpath(true);
 		Options.v().set_soot_classpath(sootClassPath() + File.pathSeparator + pathToJCE());
-		Options.v().set_process_dir(Arrays.asList(applicationClassPath().split(File.pathSeparator)));
+		if(useProcessDir){
+		    Options.v().set_process_dir(Arrays.asList(applicationClassPath().split(File.pathSeparator)));
+		}else{
+		    System.out.println("In cogni setting the arg class: "+ argClass);
+                    Options.v().setArgClass(argClass);
+		}
 		Options.v().set_include(getIncludeList());
 		Options.v().set_exclude(getExcludeList());
 		Options.v().set_full_resolver(true);
@@ -360,6 +380,14 @@ public abstract class HeadlessCryptoScanner {
 	protected String sootClassPath() {
 		return "";
 	}
+
+    protected String argClass(){
+	if(argClass != null){
+	    return argClass;
+	}else{
+	    return "";
+	}
+    }
 
 	protected abstract String applicationClassPath();
 	

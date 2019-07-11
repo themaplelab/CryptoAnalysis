@@ -12,6 +12,10 @@ public class HeadlessCryptoScannerOptions extends Options {
 
 	public HeadlessCryptoScannerOptions() {
 
+	    Option argClass =  Option.builder().longOpt("arg-class").hasArg()
+                                .desc("Select one class to supply to Soot as the argument class for analysis.").build();
+            addOption(argClass);
+
 	    Option srcprec = Option.builder().longOpt("src-prec").hasArg()
                                 .desc("Select an optional preferred source for the analysis. (cache, only-cache)").build();
 	    addOption(srcprec);
@@ -31,8 +35,7 @@ public class HeadlessCryptoScannerOptions extends Options {
 				.desc("The class path of the whole project, including dependencies.").build();
 		addOption(sootCp);
 
-		Option applicationCp = Option.builder().longOpt("applicationCp").hasArg().required()
-				.desc("The class path of the application, excluding dependencies. Objects within theses classes are analyzed.")
+		Option applicationCp = Option.builder().longOpt("applicationCp").hasArg().desc("The class path of the application, excluding dependencies. Objects within theses classes are analyzed.")
 				.build();
 		addOption(applicationCp);
 
