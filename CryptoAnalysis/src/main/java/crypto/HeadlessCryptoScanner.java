@@ -184,7 +184,15 @@ public abstract class HeadlessCryptoScanner {
 		if (!PRE_ANALYSIS || hasSeeds()) {
 			LOGGER.info("Using call graph algorithm {}", callGraphAlogrithm());
 			System.out.println("Setup as follows: ");
-			this.toString();
+			String s = "HeadlessCryptoScanner: \n";
+			s += "\tSoftwareIdentifier: "+ softwareIdentifier() +"\n";
+			if(useProcessDir){
+			    s += "\tApplicationClassPath: "+ applicationClassPath() +"\n";
+			}else{
+			    s += "\tApplicationClassPath: "+ argClass() +"\n";
+			}
+			s += "\tSootClassPath: "+ sootClassPath() +"\n\n";
+			System.out.println(s);
 			
 			initializeSootWithEntryPointAllReachable(true);
 			LOGGER.info("Analysis soot setup done in {} ",stopwatch);
@@ -222,9 +230,10 @@ public abstract class HeadlessCryptoScanner {
 		PackManager.v().getPack("cg").apply();
         PackManager.v().getPack("wjtp").apply();
 	}
+
 	
-	public String toString() {
-		String s = "HeadllessCryptoScanner: \n";
+        public String toString() {
+          	String s = "HeadlessCryptoScanner: \n";
 		s += "\tSoftwareIdentifier: "+ softwareIdentifier() +"\n";
 		if(useProcessDir){
 		    s += "\tApplicationClassPath: "+ applicationClassPath() +"\n";
