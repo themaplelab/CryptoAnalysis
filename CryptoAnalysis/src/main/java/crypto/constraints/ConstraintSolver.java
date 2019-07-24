@@ -55,6 +55,8 @@ import soot.jimple.NewExpr;
 import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
 
+import crypto.communication.Client;
+
 public class ConstraintSolver {
 
 	private final List<ISLConstraint> allConstraints;
@@ -567,6 +569,15 @@ public class ConstraintSolver {
 								varVal.put(retrieveConstantFromValue(wrappedAllocSite.getValue()), new CallSiteWithExtractedValue(wrappedCallSite, wrappedAllocSite));
 							}else{
 							    errors.add(new ImpreciseValueExtractionError(cons, wrappedCallSite.stmt(), classSpec.getRule()));
+							    try{
+								Client client = new Client();
+								client.startConnection();
+								client.sendMessage("Test message from cogni client");
+								client.stopConnection();
+							    }catch(Exception e){
+								System.out.println("Exception in client handling");
+								e.printStackTrace(System.out);
+							    }
 							}
 						}
 					}
