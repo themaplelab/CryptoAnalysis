@@ -61,6 +61,8 @@ import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
 import soot.jimple.internal.JNewArrayExpr;
 
+import crypto.communication.Client;
+
 public class ConstraintSolver {
 
 	private final List<ISLConstraint> allConstraints;
