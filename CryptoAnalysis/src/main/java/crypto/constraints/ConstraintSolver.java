@@ -306,8 +306,32 @@ public class ConstraintSolver {
 					}
 
 					return;
-				case "length":
-					//TODO Not implemented!
+			        case "length":
+				    String var = ((CryptSLObject) pred.getParameters().get(0)).getVarName();
+				    //actually if the param is not in the list of things we found values for...
+				    boolean lenValKnown = false;
+				    CallSiteWithParamIndex csFound = null;
+				    for (CallSiteWithParamIndex cs : parsAndVals.keySet()) {
+					//is searching for the length value in the known vals
+					if (cs.getVarName().equals(var)) {
+					    lenValKnown = true;
+					    break;
+					}
+				    }
+				    if(!lenValKnown){
+					//TODO find the actual callsite, bit tricky since its not
+					//longer actually in the list of places we found values
+					//since we did not find a val for it
+					for (CallSiteWithParamIndex cwpi : parameterAnalysisQuerySites) {
+					    if(cwpi.getVarName().equals(var)){
+						csFound =  cwpi;
+						break;
+					    }
+					}
+					
+					errors.add(new ImpreciseValueExtractionError(origin, csFound.stmt(), classSpec.getRule()));
+				    }
+					//TODO actual constraint check Not implemented!
 					return;
 				case "notHardCoded":
 					//TODO: Add implementation for notHardCoded predicate
@@ -556,8 +580,8 @@ public class ConstraintSolver {
 		protected Map<String, CallSiteWithExtractedValue> extractValueAsString(String varName, ISLConstraint cons) {
 			Map<String, CallSiteWithExtractedValue> varVal = Maps.newHashMap();
 			for (CallSiteWithParamIndex wrappedCallSite : parsAndVals.keySet()) {
+			    
 				final Stmt callSite = wrappedCallSite.stmt().getUnit().get();
-
 				for (ExtractedValue wrappedAllocSite : parsAndVals.get(wrappedCallSite)) {
 					final Stmt allocSite = wrappedAllocSite.stmt().getUnit().get();
 					
