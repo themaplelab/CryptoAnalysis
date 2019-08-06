@@ -601,8 +601,8 @@ public class ConstraintSolver {
 		protected Map<String, CallSiteWithExtractedValue> extractValueAsString(String varName, ISLConstraint cons) {
 			Map<String, CallSiteWithExtractedValue> varVal = Maps.newHashMap();
 			for (CallSiteWithParamIndex wrappedCallSite : parsAndVals.keySet()) {
+			    
 				final Stmt callSite = wrappedCallSite.stmt().getUnit().get();
-
 				for (ExtractedValue wrappedAllocSite : parsAndVals.get(wrappedCallSite)) {
 					final Stmt allocSite = wrappedAllocSite.stmt().getUnit().get();
 					if (wrappedCallSite.getVarName().equals(varName)) {
