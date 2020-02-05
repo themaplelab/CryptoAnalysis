@@ -163,6 +163,13 @@
 
 	<dependencies>
 	  <dependency>
+		<groupId>differ</groupId>
+		<artifactId>differ</artifactId>
+		<version>1.0</version>
+		<scope>system</scope>
+		<systemPath>/root/ssDiffTool/target/ssDiffTool-1.0-SNAPSHOT-jar-with-dependencies.jar</systemPath>
+	  </dependency>
+	  <dependency>
             <groupId>soot.local</groupId>
             <artifactId>localsoot</artifactId>
             <version>4.5</version>
