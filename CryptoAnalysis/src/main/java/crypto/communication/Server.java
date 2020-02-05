@@ -1,5 +1,6 @@
 package crypto.communication;
 
+
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
@@ -7,12 +8,14 @@ import java.nio.file.Files;
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import org.apache.commons.cli.CommandLine;
 
 import java.net.Socket;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.DataOutputStream;
+import java.io.DataInputStream;
 
 import java.io.ObjectOutputStream;
 
@@ -23,6 +26,11 @@ import crypto.rules.CryptSLRule;
 
 import java.util.concurrent.TimeUnit;
 
+import differ.SemanticDiffer;
+
+import soot.Transform;
+import soot.PackManager;
+import soot.options.Options;
 
 public class Server {
 
@@ -31,11 +39,27 @@ public class Server {
     private ServerSocket serverSocket;
 	private DataOutputStream out;
 	private BufferedReader in;
-    private boolean oneRunDone = false;
+	//private DataInputStream in;
+	private boolean oneRunDone = false;
 
 	//for the agent
 	//TODO better names
 	DataOutputStream dOut;
+
+
+	private CommandLine cogniOptions;
+    private CommandLine differOptions;
+
+	private List<String> patchGeneratedClassesRedefs = new ArrayList<String>();
+	private List<String> patchGeneratedClassesHosts = new ArrayList<String>();
+	
+	public void setCogniOptions(CommandLine options){
+		cogniOptions = options;
+	}
+
+	public void setDifferOptions(CommandLine options){
+		differOptions = options;
+    }
 	
     public void start(int port, List<CryptSLRule> rules) throws Exception{
 
@@ -50,7 +74,8 @@ public class Server {
 		clientSocket = serverSocket.accept();
 		out = new DataOutputStream(clientSocket.getOutputStream());
 		in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-
+		//in = new DataInputStream(clientSocket.getInputStream());
+		
 		System.out.println("COGNISERVER: Client accepted");
         String inputLine;
         while ((inputLine = in.readLine()) != null) {
@@ -74,6 +99,12 @@ public class Server {
 		System.out.println("-----------------------------------");
         System.out.println("COGNISERVER: Recieved this input from client: "+inputLine);
         System.out.println("-----------------------------------");
+		//this is a terrible protocol usage, true
+		int len = 6;
+		char[] cbuf = new char[len];
+		System.out.println("COGNISERVER: cbuf return : "+ in.read(cbuf, 0 , len));
+		System.out.println("COGNISERVER: this is the cbuf "+ new String(cbuf));
+		// todo refactor the above, someday.
 		if((input = in.readLine()) != null){
 			//temp trust in ourselves for passing classname as next line
 			initAnalysis(input.trim());
@@ -104,6 +135,9 @@ public class Server {
 		HashMap<Class, byte[]> newClasses = separatedRedefs.get(0);
 		HashMap<Class, byte[]> patch = separatedRedefs.get(1);
 
+		System.out.println("COGNISERVER: these are the new classes: "+newClasses);
+		System.out.println("COGNISERVER: these are the patch classes: "+patch);
+		
 		objOut.writeUTF("INITREDEFINITION");
 
 		objOut.writeInt(newClasses.keySet().size());
@@ -133,28 +167,26 @@ public class Server {
 		HashMap<Class, byte[]> cdfnewclasses = new HashMap<Class, byte[]>();
 		HashMap<Class, byte[]> cdfredefs = new HashMap<Class, byte[]>();
 		try {
-			File dir = new File(strdir);
-			File[] directoryListing = dir.listFiles();
-			if (directoryListing != null) {
-				for (File file : directoryListing) {
-					if(file.toString().contains("class")){
-						System.out.println("this was the absolute path: "+file.getAbsolutePath());
-                        String classname = file.getAbsolutePath().replaceFirst(strdir , "");
-                        System.out.println("Reading class: " + classname);
-						byte[] classBytes= Files.readAllBytes(Paths.get(file.toString()));
-                        System.out.println("using classname: "+ classname.replace(".class", ""));
-                        Class cls = Class.forName(classname.replace(".class", ""));
-						
-						if(classname.contains("NewClass")){
-							cdfnewclasses.put(cls, classBytes);
-						} else{
-							cdfredefs.put(cls, classBytes);
-						}
-					}
-				}
-			} else {
-				System.out.println("Patch directory arg was insufficient: " + strdir);
+
+			for(String fqncls : patchGeneratedClassesRedefs){
+				System.out.println("Reading class: " + fqncls);
+				String fullClassname = strdir+fqncls.replace(".","/")+".class";
+				System.out.println("Using full path: "+ fullClassname);
+				byte[] classBytes= Files.readAllBytes(Paths.get(fullClassname));
+				System.out.println("using classname: "+ fqncls);
+				Class cls = Class.forName(fqncls);
+				cdfredefs.put(cls, classBytes);
 			}
+
+			for(String fqncls : patchGeneratedClassesHosts){
+                System.out.println("Reading class: " + fqncls);
+                String fullClassname = strdir+fqncls.replace(".","/")+".class";
+                System.out.println("Using full path: "+ fullClassname);
+                byte[] classBytes= Files.readAllBytes(Paths.get(fullClassname));
+                System.out.println("using classname: "+ fqncls);
+                Class cls = Class.forName(fqncls);
+                cdfnewclasses.put(cls, classBytes);
+            }
 			
 		} catch (Exception e){
 			System.out.println("Some issue with reading classfiles: "+ e.getMessage());
@@ -217,22 +249,72 @@ public class Server {
         }
     }
 
-    public void initAnalysis(String classname) throws Exception{
-
-	System.out.println("COGNISERVER: Initing an analysis of: "+ classname);
-	//TODO replace this hardcoded applicationCP
-	//as is, can only run tests from the PanathonExamples dir, as located in root
-	String[] commandLine = { "-sootCp=/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/jce.jar:/root/openj9cryptoReleases/Agent/:/root/openj9cryptoReleases/RedefExamples/target/classes/:/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/rt.jar", "-src-prec=cache", "--rulesDir=/root/CryptoAnalysis/CryptoAnalysis/src/main/resources/JavaCryptographicArchitecture/", "--arg-class="+classname};
-	System.out.println("Running test for: "+ classname);
-	System.out.println("Command line: "+ Arrays.toString(commandLine));
-
-	System.out.println("COGNISERVER: STARTING ANALYSIS");
-	System.out.println("------------------------------");
-	HeadlessCryptoScanner.main(commandLine);
-	oneRunDone = true;
+    public void initAnalysis(String fullclassname) throws Exception{
+ 
+		String classname = fullclassname.replaceAll("\\/", ".");
+		String rulesDir = null;
+		String sootCp = null;
+		
+		System.out.println("COGNISERVER: Initing an analysis of: "+ classname);
+		//TODO replace this hardcoded applicationCP
+		//as is, can only run tests from the PanathonExamples dir, as located in root
+		if (cogniOptions.hasOption("rulesDir")) {
+			rulesDir = cogniOptions.getOptionValue("rulesDir");
+		} else {
+			rulesDir = "/root/CryptoAnalysis/CryptoAnalysis/src/main/resources/JavaCryptographicArchitecture/";
+		}
+		if(cogniOptions.hasOption("sootCp")){
+			sootCp = cogniOptions.getOptionValue("sootCp");
+		} else {
+			sootCp = "/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/jce.jar:/root/openj9cryptoReleases/Agent/:/root/openj9cryptoReleases/RedefExamples/target/classes/:/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/rt.jar";
+		}
+		
+		String[] commandLine = { "-sootCp="+sootCp, "-src-prec=cache", "--rulesDir="+rulesDir, "--arg-class="+classname};
+		System.out.println("Running test for: "+ classname);
+		System.out.println("Command line: "+ Arrays.toString(commandLine));
+		
+		System.out.println("COGNISERVER: STARTING ANALYSIS");
+		System.out.println("------------------------------");
+		HeadlessCryptoScanner.main(commandLine);
+		if(HeadlessCryptoScanner.foundErrors()){
+			System.out.println("COGNISERVER: misuse(s) detected!");
+			runPatchAdapter();
+		}
+		oneRunDone = true;
     }
-
+	
 	private void runPatchAdapter(){
+		String cpplaceholder = null;
+		String mainclassplaceholder = null;
+		String redefdirplaceholder = null;
+		if(cogniOptions.hasOption("sootCp")){
+			cpplaceholder = cogniOptions.getOptionValue("sootCp");
+		}
+		if(differOptions.hasOption("mainClass")){
+			mainclassplaceholder = differOptions.getOptionValue("mainClass");
+		}
+		if(differOptions.hasOption("redefcp")){
+			redefdirplaceholder = differOptions.getOptionValue("redefcp");
+		}
+		String[] differArgs = {"-cp", cpplaceholder, "-w", "-firstDest", Paths.get("").toAbsolutePath().toString()+"/renamedOriginals", "-altDest", "adapterOutput", "-redefcp", redefdirplaceholder, "-runRename", "true", "-mainClass", mainclassplaceholder, "-originalclasslist", Paths.get("").toAbsolutePath().toString() + "/originalclasses.out", "Example"};
+		try{
+			System.out.println("COGNISERVER: these are args to semantic differ from cogni: "+Arrays.toString(differArgs));
+			//have to fix some settings in soot from cogni run
+			Options.v().set_output_format(Options.output_format_class);
+			//Transform myTransform = PackManager.v().getPack("jap").get("jap.myTransform");
+			Transform ifds = PackManager.v().getPack("wjtp").get("wjtp.ifds");
+			PackManager.v().getPack("jap").remove("jap.myTransform");
+			PackManager.v().getPack("wjtp").remove("wjtp.ifds");
+			SemanticDiffer.main(differArgs);
+			patchGeneratedClassesRedefs = SemanticDiffer.getGeneratedClassesRedefs();
+			patchGeneratedClassesHosts = SemanticDiffer.getGeneratedClassesHosts();
+			Options.v().set_output_format(Options.output_format_none);
+			//PackManager.v().getPack("jap").add(myTransform);
+			PackManager.v().getPack("wjtp").add(ifds);
+		} catch (Exception e){
+			System.out.println("COGNISERVER: could not invoke semantic differ.");
+			 e.printStackTrace();
+		}
 	}
 	
     public void stop() throws Exception {
