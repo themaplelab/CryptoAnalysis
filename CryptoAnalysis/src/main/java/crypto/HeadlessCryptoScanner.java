@@ -60,6 +60,7 @@ public abstract class HeadlessCryptoScanner {
 	private static List<CryptSLRule> rules;
     private static boolean useProcessDir = true;
     private static String argClass;
+	private static boolean foundErrors = false;
 	
 	public static enum CG {
 		CHA, SPARK_LIBRARY, SPARK
@@ -195,6 +196,10 @@ public abstract class HeadlessCryptoScanner {
 		}
 	}
 
+	public static boolean foundErrors(){
+		return foundErrors;
+	}
+	
 	public boolean hasSeeds(){
 		return hasSeeds;
 	}
@@ -289,6 +294,7 @@ public abstract class HeadlessCryptoScanner {
 					reporter.addReportListener(new CSVReporter(csvOutputFile,softwareIdentifier(),rules,callGraphWatch.elapsed(TimeUnit.MILLISECONDS)));
 				}
 				scanner.scan(rules);
+				foundErrors = fileReporter.foundErrors();
 			}
 		};
 	}

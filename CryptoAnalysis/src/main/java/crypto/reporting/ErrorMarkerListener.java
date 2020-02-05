@@ -54,6 +54,10 @@ public class ErrorMarkerListener extends CrySLAnalysisListener {
 	protected final Table<SootClass, SootMethod, Set<AbstractError>> errorMarkers = HashBasedTable.create(); 
 	protected final Map<Class, Integer> errorMarkerCount = new HashMap<Class, Integer>();
 	protected final List<IAnalysisSeed> secureObjects = new ArrayList<IAnalysisSeed>();
+
+	public boolean foundErrors(){
+		return !errorMarkerCount.isEmpty();
+	}
 	
 	private void addMarker(AbstractError error) {
 		SootMethod method = error.getErrorLocation().getMethod();
