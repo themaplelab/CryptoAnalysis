@@ -61,12 +61,12 @@ public abstract class HeadlessCryptoScanner {
 	private static boolean PRE_ANALYSIS = false;
 	private static String rootRulesDirForProvider;
 	private static final Logger LOGGER = LoggerFactory.getLogger(HeadlessCryptoScanner.class);
-        private static boolean cacheSrc = false;
-        private	static boolean cacheSrcOnly = false;
+	private static boolean cacheSrc = false;
+	private	static boolean cacheSrcOnly = false;
 	private static List<CryptSLRule> rules;
     private static boolean useProcessDir = true;
     private static String argClass;
-    
+	
 	public static enum CG {
 		CHA, SPARK_LIBRARY, SPARK
 	}
@@ -75,6 +75,7 @@ public abstract class HeadlessCryptoScanner {
 		HeadlessCryptoScanner scanner = createFromOptions(args);
 		scanner.exec();
 	}
+
 
 	public static HeadlessCryptoScanner createFromOptions(String... args) throws ParseException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, IOException {
 		CommandLineParser parser = new DefaultParser();

@@ -1,68 +1,195 @@
 package crypto.communication;
 
-import java.lang.NoSuchMethodException;
-import java.lang.ClassNotFoundException;
-import org.apache.commons.cli.ParseException;
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 import java.net.Socket;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.DataOutputStream;
+
 import java.lang.String;
 import java.net.ServerSocket;    
-import java.io.IOException;
 import crypto.HeadlessCryptoScanner;
+import crypto.rules.CryptSLRule;
+
+import java.util.concurrent.TimeUnit;
+
 
 public class Server {
 
     private Socket clientSocket;
+	private Socket agentClient; //for this server, but as client of agent
     private ServerSocket serverSocket;
-    private PrintWriter out;
-    private BufferedReader in;
+	private DataOutputStream out;
+	private BufferedReader in;
+    private boolean oneRunDone = false;
 
-    //    public void start(int port) throws IOException, ParseException, ClassNotFoundException, NoSuchMethodException{
-    public void start(int port) throws Exception{
-	serverSocket = new ServerSocket(port);
-	System.out.println("Starting up the server, waiting for client!");
-        clientSocket = serverSocket.accept();
-        out = new PrintWriter(clientSocket.getOutputStream(), true);
-        in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+	//for the agent
+	//TODO better names
+	DataOutputStream dOut;
+	
+    public void start(int port, List<CryptSLRule> rules) throws Exception{
 
-	System.out.println("Client accepted");
+		//first lets reorder them for the idea of more efficient compare order
+		List<String> ruleNames = reorderSeeds(rules);
+		
+		serverSocket = new ServerSocket(port);
+		System.out.println("");
+		System.out.println("-----------------------------------");
+		System.out.println("COGNISERVER: Starting up the server, waiting for client!");
+		System.out.println("-----------------------------------");
+		clientSocket = serverSocket.accept();
+		out = new DataOutputStream(clientSocket.getOutputStream());
+		in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+
+		System.out.println("COGNISERVER: Client accepted");
         String inputLine;
         while ((inputLine = in.readLine()) != null) {
-        if ("END".equals(inputLine)) {
-            System.out.println("good bye");
+        if ("END".equals(inputLine) || oneRunDone) {
+			stop();
             break;
          }
-	System.out.println("Recieved this input from client: "+inputLine.trim());
-
+		
+				System.out.println("-----------------------------------");
+		System.out.println("COGNISERVER: Recieved this input from client: "+inputLine);
+		System.out.println("-----------------------------------");
+		
 	//TODO replace this with real msg protocol, prefer protobuf bc easy to manage
-	if("INITANALYSIS".equals(inputLine.trim())){
-	    if((inputLine = in.readLine()) != null){
-		//temp trust in ourselves for passing classname as next line
-		initAnalysis(inputLine.trim());
+	String input = inputLine.trim();
+	if("REQUESTSEEDS".equals(input)) {
+		System.out.println("-----------------------------------");
+        System.out.println("COGNISERVER: Recieved this input from client: "+inputLine);
+        System.out.println("-----------------------------------");
+		sendSeeds(ruleNames);
+	} else if("INITANALYSIS".equals(input)){
+		System.out.println("-----------------------------------");
+        System.out.println("COGNISERVER: Recieved this input from client: "+inputLine);
+        System.out.println("-----------------------------------");
+		if((input = in.readLine()) != null){
+			//temp trust in ourselves for passing classname as next line
+			initAnalysis(input.trim());
+			sendFix();
 	    }else{
-		System.out.println("Expected to receive classname next, received nothing instead.");
+			System.out.println("COGNISERVER: Expected to receive classname next, received nothing instead.");
 	    }
 	}else{
-	    System.out.println("The message from client is unrecognized.");
+	    //System.out.println("COGNISERVER: The message from client is unrecognized.");
 	}
 	    
 
 	}
     }
 
-    //    public void initAnalysis(String classname) throws ParseException, ClassNotFoundException, NoSuchMethodException{
+	private void sendFix() throws Exception{
+
+		System.out.println("-----------------------------------");
+		System.out.println("COGNISERVER: sending the fix...");
+		
+		int port = 38401;
+		agentClient = new Socket("127.0.0.1", port);
+		dOut = new DataOutputStream(agentClient.getOutputStream());
+		
+		byte[] fixed = readManual();
+		dOut.writeUTF("INITREDEFINITION");
+		System.out.println("COGNISERVER: sending this number of bytes to be read from array: "+ fixed.length);
+		dOut.writeInt(fixed.length);
+		dOut.write(fixed);
+		dOut.flush();
+		System.out.println("COGNISERVER: fix sent.");
+		System.out.println("-----------------------------------");
+
+	}
+	
+
+	
+	private byte[] readManual() throws Exception{
+		//TODO specify path as external arg
+		byte[] classBytes= Files.readAllBytes(Paths.get("/root/openj9cryptoReleases/RedefExamplesFixed/target/classes/ConstraintErrorExample.class"));
+		return classBytes;
+	}
+
+	private void sendSeeds(List<String> rules) throws Exception {
+		//first send number of them
+		System.out.println("COGNISERVER: sending this many seeds to read: "+ rules.size());
+		TimeUnit.SECONDS.sleep(3);
+		out.writeInt(rules.size());
+		for (String rule : rules) {
+			//the strings in sigs in the jit will contain / not . in package names
+			out.writeUTF(rule.replace(".", "/"));
+		}
+		System.out.println("COGNISERVER: done sending seeds.");
+		System.out.println("-----------------------------------");
+	}
+
+	//this is based on heurisitics
+	//TODO refactor, this could be better
+	private List<String> reorderSeeds(List<CryptSLRule> rules){
+		//first put all class names into array
+		List<String> theImportant = new ArrayList(Arrays.asList(new String[rules.size()]));
+
+		theImportant.set(0, "java.security.MessageDigest");
+		theImportant.set(1, "javax.crypto.Cipher");
+		theImportant.set(2, "java.security.SecureRandom");
+		theImportant.set(3, "java.security.Signature");
+
+		int ogIndex = 0;
+		int newIndex = 4;
+		int end = rules.size();
+		while (ogIndex != end) {
+			switch( rules.get(ogIndex).getClassName() ){
+			case "java.security.SecureRandom":
+			case "java.security.MessageDigest":
+			case "java.security.Signature":
+			case "javax.crypto.Cipher":
+				ogIndex++;
+				continue;
+			default:
+				theImportant.set(newIndex, rules.get(ogIndex).getClassName());
+				newIndex++;
+				ogIndex++;
+			}
+		}
+				
+		return theImportant;
+	}
+	
+	private void printClasses(List<CryptSLRule> rules){
+        System.out.println("COGNISERVER: printing the classes that we have specs for");
+		for (CryptSLRule rule : rules) {
+			System.out.println(rule.getClassName());
+        }
+    }
+
     public void initAnalysis(String classname) throws Exception{
 
-	System.out.println("Initing an analysis.");
+	System.out.println("COGNISERVER: Initing an analysis of: "+ classname);
 	//TODO replace this hardcoded applicationCP
 	//as is, can only run tests from the PanathonExamples dir, as located in root
-	String[] commandLine = { "-sootCp=/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/rt.jar:/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/jce.jar:/root/PanathonExampleMaterials/exBin", "-src-prec=cache", "--rulesDir=/root/CryptoAnalysis/CryptoAnalysis/src/main/resources/JavaCryptographicArchitecture/", "--sootCp=/root/PanathonExampleMaterials/exBin", "--arg-class=PBEmin"};
+	String[] commandLine = { "-sootCp=/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/jce.jar:/root/openj9cryptoReleases/Agent/:/root/openj9cryptoReleases/RedefExamples/target/classes/:/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/rt.jar", "-src-prec=cache", "--rulesDir=/root/CryptoAnalysis/CryptoAnalysis/src/main/resources/JavaCryptographicArchitecture/", "--arg-class="+classname};
 	System.out.println("Running test for: "+ classname);
 	System.out.println("Command line: "+ Arrays.toString(commandLine));
 
+	System.out.println("COGNISERVER: STARTING ANALYSIS");
+	System.out.println("------------------------------");
 	HeadlessCryptoScanner.main(commandLine);
+	oneRunDone = true;
+    }
+
+	private void runPatchAdapter(){
+	}
+	
+    public void stop() throws Exception {
+		System.out.println("COGNISERVER:  closing connection.");
+		in.close();
+        out.close();
+		dOut.close();
+        clientSocket.close();
+        serverSocket.close();
+		agentClient.close();
     }
 }
