@@ -4,13 +4,17 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.nio.file.Files;
+import java.io.File;
 import java.nio.file.Paths;
+import java.util.HashMap;
 
 import java.net.Socket;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.DataOutputStream;
+
+import java.io.ObjectOutputStream;
 
 import java.lang.String;
 import java.net.ServerSocket;    
@@ -93,26 +97,74 @@ public class Server {
 		int port = 38401;
 		agentClient = new Socket("127.0.0.1", port);
 		dOut = new DataOutputStream(agentClient.getOutputStream());
+		ObjectOutputStream objOut = new ObjectOutputStream(agentClient.getOutputStream());
+
+		String redefdir= Paths.get("").toAbsolutePath().toString() + "/adapterOutput/";
+		ArrayList<HashMap<Class, byte[]>> separatedRedefs = readDefsFromDir(redefdir);
+		HashMap<Class, byte[]> newClasses = separatedRedefs.get(0);
+		HashMap<Class, byte[]> patch = separatedRedefs.get(1);
+
+		objOut.writeUTF("INITREDEFINITION");
+
+		objOut.writeInt(newClasses.keySet().size());
+        for(Class cls : newClasses.keySet()){
+            System.out.println("COGNISERVER: sending this number of bytes to be read from array: "+ newClasses.get(cls).length);
+            objOut.writeInt(newClasses.get(cls).length);
+            objOut.write(newClasses.get(cls));
+            objOut.writeUTF(cls.getName());
+        }
 		
-		byte[] fixed = readManual();
-		dOut.writeUTF("INITREDEFINITION");
-		System.out.println("COGNISERVER: sending this number of bytes to be read from array: "+ fixed.length);
-		dOut.writeInt(fixed.length);
-		dOut.write(fixed);
-		dOut.flush();
+		objOut.writeInt(patch.keySet().size());
+		for(Class cls : patch.keySet()){
+			System.out.println("COGNISERVER: sending this number of bytes to be read from array: "+ patch.get(cls).length);
+			objOut.writeInt(patch.get(cls).length);
+			objOut.write(patch.get(cls));
+			objOut.writeObject(cls);
+		}
+		objOut.flush();
 		System.out.println("COGNISERVER: fix sent.");
 		System.out.println("-----------------------------------");
 
 	}
 	
-
-	
-	private byte[] readManual() throws Exception{
-		//TODO specify path as external arg
-		byte[] classBytes= Files.readAllBytes(Paths.get("/root/openj9cryptoReleases/RedefExamplesFixed/target/classes/ConstraintErrorExample.class"));
-		return classBytes;
+	private ArrayList<HashMap<Class, byte[]>> readDefsFromDir(String strdir){
+		//gather all class files in the arg dir
+		ArrayList<HashMap<Class, byte[]>> alldefs = new ArrayList<HashMap<Class, byte[]>>();
+		HashMap<Class, byte[]> cdfnewclasses = new HashMap<Class, byte[]>();
+		HashMap<Class, byte[]> cdfredefs = new HashMap<Class, byte[]>();
+		try {
+			File dir = new File(strdir);
+			File[] directoryListing = dir.listFiles();
+			if (directoryListing != null) {
+				for (File file : directoryListing) {
+					if(file.toString().contains("class")){
+						System.out.println("this was the absolute path: "+file.getAbsolutePath());
+                        String classname = file.getAbsolutePath().replaceFirst(strdir , "");
+                        System.out.println("Reading class: " + classname);
+						byte[] classBytes= Files.readAllBytes(Paths.get(file.toString()));
+                        System.out.println("using classname: "+ classname.replace(".class", ""));
+                        Class cls = Class.forName(classname.replace(".class", ""));
+						
+						if(classname.contains("NewClass")){
+							cdfnewclasses.put(cls, classBytes);
+						} else{
+							cdfredefs.put(cls, classBytes);
+						}
+					}
+				}
+			} else {
+				System.out.println("Patch directory arg was insufficient: " + strdir);
+			}
+			
+		} catch (Exception e){
+			System.out.println("Some issue with reading classfiles: "+ e.getMessage());
+			e.printStackTrace();
+		}
+		alldefs.add(cdfnewclasses);
+		alldefs.add(cdfredefs);
+		return alldefs;
 	}
-
+	
 	private void sendSeeds(List<String> rules) throws Exception {
 		//first send number of them
 		System.out.println("COGNISERVER: sending this many seeds to read: "+ rules.size());
