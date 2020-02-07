@@ -12,7 +12,6 @@ import org.apache.commons.cli.ParseException;
 import crypto.analysis.CrySLRulesetSelector;
 import crypto.rules.CryptSLRule;
 
-import differ.RelaxedParser;
 
 public class TCPCryptoRunner {
 
@@ -23,15 +22,10 @@ public class TCPCryptoRunner {
     public static void main(String[] args) throws Exception{
 
 
-		RelaxedParser parser = new RelaxedParser();
-        options = parser.parse(new SemanticOptions(), args);
-        List<String> options1 = new ArrayList<String>();
-		parser.getLeftovers(options1);
-		
 		//for now, TODO consider if we really want the same set of
 		//possible options as the HeadlessCryptoScanner
 		CommandLineParser parser = new DefaultParser();
-        options = parser.parse(new HeadlessCryptoScannerOptions(), options1.toArray(new String[0]));
+        options = parser.parse(new HeadlessCryptoScannerOptions(), args);
 
 		//TODO add no option provided handling
 		if (options.hasOption("rulesDir")) {
