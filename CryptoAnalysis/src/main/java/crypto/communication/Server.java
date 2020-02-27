@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 
 import differ.SemanticDiffer;
 
+import soot.asm.CacheClassProvider;
 import soot.Transform;
 import soot.PackManager;
 import soot.options.Options;
@@ -107,8 +108,14 @@ public class Server {
 		// todo refactor the above, someday.
 		if((input = in.readLine()) != null){
 			//temp trust in ourselves for passing classname as next line
-			initAnalysis(input.trim());
-			sendFix();
+			String mainClass = input.trim();
+			boolean foundErrors = initAnalysis(mainClass);
+			if(foundErrors){
+				runPatchAdapter();
+				sendFix();
+				TimeUnit.SECONDS.sleep(60); //also just for eval
+				initAnalysis(mainClass); //this call is just for EVAL purposes
+			}
 	    }else{
 			System.out.println("COGNISERVER: Expected to receive classname next, received nothing instead.");
 	    }
@@ -249,7 +256,7 @@ public class Server {
         }
     }
 
-    public void initAnalysis(String fullclassname) throws Exception{
+    public boolean initAnalysis(String fullclassname) throws Exception{
  
 		String classname = fullclassname.replaceAll("\\/", ".");
 		String rulesDir = null;
@@ -266,7 +273,7 @@ public class Server {
 		if(cogniOptions.hasOption("sootCp")){
 			sootCp = cogniOptions.getOptionValue("sootCp");
 		} else {
-			sootCp = "/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/jce.jar:/root/openj9cryptoReleases/Agent/:/root/openj9cryptoReleases/RedefExamples/target/classes/:/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/rt.jar";
+			sootCp = "/root/openj9cryptoReleases/RedefExamples/target/classes/:/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/jce.jar:/root/openj9cryptoReleases/Agent/:/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/rt.jar";
 		}
 		
 		String[] commandLine = { "-sootCp="+sootCp, "-src-prec=cache", "--rulesDir="+rulesDir, "--arg-class="+classname};
@@ -275,12 +282,15 @@ public class Server {
 		
 		System.out.println("COGNISERVER: STARTING ANALYSIS");
 		System.out.println("------------------------------");
+		//the path to passing this as a conventional param is long, cutting it short in a bad way
+		CacheClassProvider.setTestClassUrl(sootCp.split(":")[0]);
 		HeadlessCryptoScanner.main(commandLine);
 		if(HeadlessCryptoScanner.foundErrors()){
 			System.out.println("COGNISERVER: misuse(s) detected!");
-			runPatchAdapter();
+			return true;
 		}
 		oneRunDone = true;
+		return false;
     }
 	
 	private void runPatchAdapter(){
