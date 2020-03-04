@@ -53,6 +53,8 @@ public class Server {
 
 	private List<String> patchGeneratedClassesRedefs = new ArrayList<String>();
 	private List<String> patchGeneratedClassesHosts = new ArrayList<String>();
+
+	private static String redefdir= Paths.get("").toAbsolutePath().toString() + "/adapterOutput/";
 	
 	public void setCogniOptions(CommandLine options){
 		cogniOptions = options;
@@ -109,12 +111,12 @@ public class Server {
 		if((input = in.readLine()) != null){
 			//temp trust in ourselves for passing classname as next line
 			String mainClass = input.trim();
-			boolean foundErrors = initAnalysis(mainClass);
+			boolean foundErrors = initAnalysis(mainClass, true);
 			if(foundErrors){
 				runPatchAdapter();
 				sendFix();
 				TimeUnit.SECONDS.sleep(60); //also just for eval
-				initAnalysis(mainClass); //this call is just for EVAL purposes
+				initAnalysis(mainClass, false); //this call is just for EVAL purposes
 			}
 	    }else{
 			System.out.println("COGNISERVER: Expected to receive classname next, received nothing instead.");
@@ -137,7 +139,6 @@ public class Server {
 		dOut = new DataOutputStream(agentClient.getOutputStream());
 		ObjectOutputStream objOut = new ObjectOutputStream(agentClient.getOutputStream());
 
-		String redefdir= Paths.get("").toAbsolutePath().toString() + "/adapterOutput/";
 		ArrayList<HashMap<Class, byte[]>> separatedRedefs = readDefsFromDir(redefdir);
 		HashMap<Class, byte[]> newClasses = separatedRedefs.get(0);
 		HashMap<Class, byte[]> patch = separatedRedefs.get(1);
@@ -256,7 +257,7 @@ public class Server {
         }
     }
 
-    public boolean initAnalysis(String fullclassname) throws Exception{
+    public boolean initAnalysis(String fullclassname, boolean useSCCForAppClass) throws Exception{
  
 		String classname = fullclassname.replaceAll("\\/", ".");
 		String rulesDir = null;
@@ -276,14 +277,24 @@ public class Server {
 			sootCp = "/root/openj9cryptoReleases/RedefExamples/target/classes/:/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/jce.jar:/root/openj9cryptoReleases/Agent/:/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/rt.jar";
 		}
 		
+		if(useSCCForAppClass){
+			//the path to passing this as a conventional param is long, cutting it short in a bad way
+			CacheClassProvider.setTestClassUrl(sootCp.split(":")[0]);
+			System.out.println("COGNISERVER: using this as the testclassurl: "+ sootCp.split(":")[0]);
+		}else{
+			//want to analyze the patch version, not scc version
+			sootCp = redefdir + ":" + sootCp ;
+			CacheClassProvider.setTestClassUrl("");
+			System.out.println("COGNISERVER: using this as the testclassurl: "+ "");
+		}
+
 		String[] commandLine = { "-sootCp="+sootCp, "-src-prec=cache", "--rulesDir="+rulesDir, "--arg-class="+classname};
-		System.out.println("Running test for: "+ classname);
-		System.out.println("Command line: "+ Arrays.toString(commandLine));
-		
+        System.out.println("Running test for: "+ classname);
+        System.out.println("Command line: "+ Arrays.toString(commandLine));
+
 		System.out.println("COGNISERVER: STARTING ANALYSIS");
-		System.out.println("------------------------------");
-		//the path to passing this as a conventional param is long, cutting it short in a bad way
-		CacheClassProvider.setTestClassUrl(sootCp.split(":")[0]);
+        System.out.println("------------------------------");
+		
 		HeadlessCryptoScanner.main(commandLine);
 		if(HeadlessCryptoScanner.foundErrors()){
 			System.out.println("COGNISERVER: misuse(s) detected!");
