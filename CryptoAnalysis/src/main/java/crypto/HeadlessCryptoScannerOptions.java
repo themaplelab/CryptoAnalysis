@@ -58,6 +58,10 @@ public class HeadlessCryptoScannerOptions extends Options {
 		
 		Option providerDetection = Option.builder().longOpt("providerDetection").hasArg(false).desc("Enable Provider Detection analysis").build();
 		addOption(providerDetection);
+
+		Option patchlist =  Option.builder().longOpt("patchlist").hasArg().desc("List of patches that are currently available.").build();
+		addOption(patchlist);
+		
 	}
 
 }

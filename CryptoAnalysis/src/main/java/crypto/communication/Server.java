@@ -50,11 +50,16 @@ public class Server {
 
 	private CommandLine cogniOptions;
     private CommandLine differOptions;
+	private ArrayList<String> patchNames;
 
+	
 	private List<String> patchGeneratedClassesRedefs = new ArrayList<String>();
 	private List<String> patchGeneratedClassesHosts = new ArrayList<String>();
 
 	private static String redefdir= Paths.get("").toAbsolutePath().toString() + "/adapterOutput/";
+
+
+	private ArrayList<String> finishedNames = new ArrayList<String>();
 	
 	public void setCogniOptions(CommandLine options){
 		cogniOptions = options;
@@ -64,8 +69,11 @@ public class Server {
 		differOptions = options;
     }
 	
-    public void start(int port, List<CryptSLRule> rules) throws Exception{
+    public void start(int port, List<CryptSLRule> rules, ArrayList<String> patches) throws Exception{
 
+		patchNames = patches; 
+		System.out.println("COGNISERVER: using list of patches that are currently available: "+ patchNames);
+		
 		//first lets reorder them for the idea of more efficient compare order
 		List<String> ruleNames = reorderSeeds(rules);
 		
@@ -110,13 +118,17 @@ public class Server {
 		// todo refactor the above, someday.
 		if((input = in.readLine()) != null){
 			//temp trust in ourselves for passing classname as next line
-			String mainClass = input.trim();
-			boolean foundErrors = initAnalysis(mainClass, true);
-			if(foundErrors){
-				runPatchAdapter();
-				sendFix();
-				TimeUnit.SECONDS.sleep(60); //also just for eval
-				initAnalysis(mainClass, false); //this call is just for EVAL purposes
+			String mainClass = input.trim().replaceAll("\\/", ".");
+			System.out.println("COGNISERVER: Recieved this input from client as classname: "+mainClass);
+			if(patchNames.contains(mainClass) && !finishedNames.contains(mainClass)){
+				boolean foundErrors = initAnalysis(mainClass, true);
+				if(foundErrors){
+					runPatchAdapter(mainClass);
+					sendFix();
+					finishedNames.add(mainClass); //just for now we want to avoid doing the same one twice
+					TimeUnit.SECONDS.sleep(60); //also just for eval
+					initAnalysis(mainClass, false); //this call is just for EVAL purposes
+				}
 			}
 	    }else{
 			System.out.println("COGNISERVER: Expected to receive classname next, received nothing instead.");
@@ -257,9 +269,8 @@ public class Server {
         }
     }
 
-    public boolean initAnalysis(String fullclassname, boolean useSCCForAppClass) throws Exception{
+    public boolean initAnalysis(String classname, boolean useSCCForAppClass) throws Exception{
  
-		String classname = fullclassname.replaceAll("\\/", ".");
 		String rulesDir = null;
 		String sootCp = null;
 		
@@ -304,20 +315,18 @@ public class Server {
 		return false;
     }
 	
-	private void runPatchAdapter(){
+	private void runPatchAdapter(String mainClass){
 		String cpplaceholder = null;
 		String mainclassplaceholder = null;
 		String redefdirplaceholder = null;
 		if(cogniOptions.hasOption("sootCp")){
 			cpplaceholder = cogniOptions.getOptionValue("sootCp");
 		}
-		if(differOptions.hasOption("mainClass")){
-			mainclassplaceholder = differOptions.getOptionValue("mainClass");
-		}
+		
 		if(differOptions.hasOption("redefcp")){
 			redefdirplaceholder = differOptions.getOptionValue("redefcp");
 		}
-		String[] differArgs = {"-cp", cpplaceholder, "-w", "-firstDest", Paths.get("").toAbsolutePath().toString()+"/renamedOriginals", "-altDest", "adapterOutput", "-redefcp", redefdirplaceholder, "-runRename", "true", "-mainClass", mainclassplaceholder, "-originalclasslist", Paths.get("").toAbsolutePath().toString() + "/originalclasses.out", "Example"};
+		String[] differArgs = {"-cp", cpplaceholder, "-w", "-firstDest", Paths.get("").toAbsolutePath().toString()+"/renamedOriginals", "-altDest", "adapterOutput", "-redefcp", redefdirplaceholder, "-runRename", "true", "-mainClass", mainClass, "-originalclasslist", Paths.get("").toAbsolutePath().toString() + "/originalclasses.out", "Example"};
 		try{
 			System.out.println("COGNISERVER: these are args to semantic differ from cogni: "+Arrays.toString(differArgs));
 			//have to fix some settings in soot from cogni run

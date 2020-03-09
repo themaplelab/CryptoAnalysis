@@ -6,6 +6,9 @@ import java.lang.Exception;
 import java.util.List;
 import java.io.File;
 import java.util.ArrayList;
+import java.io.BufferedReader;
+import java.io.FileReader;
+
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -52,10 +55,25 @@ public class TCPCryptoRunner {
         while(it2.hasNext()){
 	    System.out.println("differoption: "+ it2.next());
 		}
-		
+		ArrayList<String> patchNames = gatherPatchNamesFromFile(cogniOptions.getOptionValue("patchlist"));
 		server.setCogniOptions(cogniOptions);
 		server.setDifferOptions(differOptions);
-		server.start(port, rules);
+		server.start(port, rules, patchNames);
     }
 
+	//reads the classes that designate the patch, from a file. One class per line, fqn.                                         
+    private static ArrayList<String> gatherPatchNamesFromFile(String patchFile){
+		ArrayList<String> allNames = new ArrayList<String>();
+        try{
+            BufferedReader in = new BufferedReader(new FileReader(patchFile));
+            String str;
+            while((str = in.readLine()) != null){
+                allNames.add(str.replace(".class", ""));
+            }
+        }catch(Exception e){
+            System.out.println("Some issue accessing the classes that we have for the patch: "+ e.getMessage());
+    }
+        return allNames;
+    }
+	
 }
