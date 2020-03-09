@@ -55,6 +55,10 @@ public class HeadlessCryptoScannerOptions extends Options {
 		
 		Option sarif = Option.builder().longOpt("sarifReport").hasArg(false).desc("Enable sarif report").build();
 		addOption(sarif);
+
+		Option patchlist =  Option.builder().longOpt("patchlist").hasArg().desc("List of patches that are currently available.").build();
+		addOption(patchlist);
+		
 	}
 
 }
