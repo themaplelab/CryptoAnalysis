@@ -1,6 +1,5 @@
 package crypto.communication;
 
-
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
@@ -319,14 +318,17 @@ public class Server {
 		String cpplaceholder = null;
 		String mainclassplaceholder = null;
 		String redefdirplaceholder = null;
-		if(cogniOptions.hasOption("sootCp")){
+		/*if(cogniOptions.hasOption("sootCp")){
 			cpplaceholder = cogniOptions.getOptionValue("sootCp");
+			}*/
+		if(differOptions.hasOption("differClasspath")){
+			cpplaceholder = differOptions.getOptionValue("differClasspath");
 		}
 		
 		if(differOptions.hasOption("redefcp")){
 			redefdirplaceholder = differOptions.getOptionValue("redefcp");
 		}
-		String[] differArgs = {"-cp", cpplaceholder, "-w", "-firstDest", Paths.get("").toAbsolutePath().toString()+"/renamedOriginals", "-altDest", "adapterOutput", "-redefcp", redefdirplaceholder, "-runRename", "true", "-mainClass", mainClass, "-originalclasslist", Paths.get("").toAbsolutePath().toString() + "/originalclasses.out", "Example"};
+		String[] differArgs = {"-cp", cpplaceholder, "-w", "-firstDest", Paths.get("").toAbsolutePath().toString()+"/renamedOriginals", "-altDest", "adapterOutput", "-redefcp", redefdirplaceholder, "-runRename", "true", "-mainClass", mainClass, "-originalclasslist", Paths.get("").toAbsolutePath().toString() + "/" + mainClass + ".originalclasses.out", "Example"};
 		try{
 			System.out.println("COGNISERVER: these are args to semantic differ from cogni: "+Arrays.toString(differArgs));
 			//have to fix some settings in soot from cogni run
