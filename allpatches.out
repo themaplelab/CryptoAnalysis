@@ -1,0 +1,13 @@
+org.brunocvcunha.instagram4j.util.InstagramHashUtil
+com.bwssystems.HABridge.BridgeSecurity
+com.jeesuite.common.crypt.DES
+com.jeesuite.common.crypt.AES
+com.jeesuite.common.crypt.SHA1
+com.jeesuite.common.util.DigestUtils
+com.snowcattle.game.common.util.DesEncrypter
+com.snowcattle.game.common.util.AES
+com.snowcattle.game.common.util.MD5Util
+com.smart.sso.server.util.AESUtils
+com.smart.sso.server.provider.PasswordProvider
+org.hongxi.whatsmars.common.util.DESUtils
+org.hongxi.whatsmars.common.util.AESUtils
