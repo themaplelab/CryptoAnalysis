@@ -593,15 +593,7 @@ public class ConstraintSolver {
 								varVal.put(retrieveConstantFromValue(wrappedAllocSite.getValue()), new CallSiteWithExtractedValue(wrappedCallSite, wrappedAllocSite));
 							}else{
 							    errors.add(new ImpreciseValueExtractionError(cons, wrappedCallSite.stmt(), classSpec.getRule()));
-							    try{
-								Client client = new Client();
-								client.startConnection();
-								client.sendMessage("Test message from cogni client");
-								client.stopConnection();
-							    }catch(Exception e){
-								System.out.println("Exception in client handling");
-								e.printStackTrace(System.out);
-							    }
+							    
 							}
 						}
 					}
