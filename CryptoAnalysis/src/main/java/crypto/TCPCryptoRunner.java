@@ -47,14 +47,7 @@ public class TCPCryptoRunner {
 		//will automatically setup as server, no checking of args
 		Server server = new Server();
 
-		Iterator it = cogniOptions.iterator();
-		while(it.hasNext()){
-			System.out.println("cognioption: "+ it.next());
-		}
-		Iterator it2 = differOptions.iterator();
-        while(it2.hasNext()){
-	    System.out.println("differoption: "+ it2.next());
-		}
+		
 		ArrayList<String> patchNames = gatherPatchNamesFromFile(cogniOptions.getOptionValue("patchlist"));
 		server.setCogniOptions(cogniOptions);
 		server.setDifferOptions(differOptions);

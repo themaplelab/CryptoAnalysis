@@ -112,8 +112,7 @@ public class Server {
 		//this is a terrible protocol usage, true
 		int len = 6;
 		char[] cbuf = new char[len];
-		System.out.println("COGNISERVER: cbuf return : "+ in.read(cbuf, 0 , len));
-		System.out.println("COGNISERVER: this is the cbuf "+ new String(cbuf));
+		in.read(cbuf, 0 , len);
 		// todo refactor the above, someday.
 		if((input = in.readLine()) != null){
 			//temp trust in ourselves for passing classname as next line
