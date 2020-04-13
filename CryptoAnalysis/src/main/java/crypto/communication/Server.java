@@ -285,19 +285,23 @@ public class Server {
 		} else {
 			sootCp = "/root/openj9cryptoReleases/RedefExamples/target/classes/:/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/jce.jar:/root/openj9cryptoReleases/Agent/:/root/openj9-openjdk-jdk8/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/rt.jar";
 		}
-		
+
+		String argOrDir = null;
 		if(useSCCForAppClass){
 			//the path to passing this as a conventional param is long, cutting it short in a bad way
 			CacheClassProvider.setTestClassUrl(sootCp.split(":")[0]);
 			System.out.println("COGNISERVER: using this as the testclassurl: "+ sootCp.split(":")[0]);
+			argOrDir="--arg-class="+classname;
 		}else{
 			//want to analyze the patch version, not scc version
 			sootCp = redefdir + ":" + sootCp ;
 			CacheClassProvider.setTestClassUrl("");
 			System.out.println("COGNISERVER: using this as the testclassurl: "+ "");
+			argOrDir="--applicationCp="+redefdir;
 		}
 
-		String[] commandLine = { "-sootCp="+sootCp, "-src-prec=cache", "--rulesDir="+rulesDir, "--arg-class="+classname};
+		String[] commandLine = { "-sootCp="+sootCp, "-src-prec=cache", "--rulesDir="+rulesDir, argOrDir};
+		
         System.out.println("Running test for: "+ classname);
         System.out.println("Command line: "+ Arrays.toString(commandLine));
 

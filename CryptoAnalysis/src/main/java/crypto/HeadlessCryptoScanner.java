@@ -85,6 +85,10 @@ public abstract class HeadlessCryptoScanner {
 		if(options.hasOption("arg-class")){
 		    argClass = options.getOptionValue("arg-class");
 		    useProcessDir = false;
+			System.out.println("Headless scanner options does have arg-class: "+ argClass);  
+		}else {
+			useProcessDir = true;
+			System.out.println("Headless scanner options does not have arg-class");
 		}
 		
 		if(options.hasOption("src-prec")){
