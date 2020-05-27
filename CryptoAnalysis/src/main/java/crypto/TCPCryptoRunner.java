@@ -1,5 +1,6 @@
 package crypto;
 
+
 import java.util.Iterator;
 import crypto.communication.Server;
 import java.lang.Exception;
@@ -21,7 +22,7 @@ import differ.SemanticOptions;
 
 public class TCPCryptoRunner {
 
-    private static int port = 38400;
+    private static int port = 38401;
 	private static List<CryptSLRule> rules;
 	private static CommandLine cogniOptions;
 	private static CommandLine differOptions;

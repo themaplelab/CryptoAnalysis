@@ -37,7 +37,8 @@ import crypto.reporting.CSVReporter;
 import crypto.reporting.CommandLineReporter;
 import crypto.reporting.ErrorMarkerListener;
 import crypto.reporting.SARIFReporter;
-import crypto.rules.CrySLRule;
+import crypto.rules.CryptSLRule;
+import crypto.communication.Server;
 import ideal.IDEALSeedSolver;
 import soot.Body;
 import soot.BodyTransformer;
@@ -66,6 +67,7 @@ public abstract class HeadlessCryptoScanner {
 	private static List<CryptSLRule> rules;
     private static boolean useProcessDir = true;
     private static String argClass;
+	private static List<String> allclasses; 
 	private static boolean foundErrors = false;
 	
 	public static enum CG {
@@ -85,6 +87,7 @@ public abstract class HeadlessCryptoScanner {
 		if(options.hasOption("arg-class")){
 		    argClass = options.getOptionValue("arg-class");
 		    useProcessDir = false;
+			allclasses = Server.getAll();  
 			System.out.println("Headless scanner options does have arg-class: "+ argClass);  
 		}else {
 			useProcessDir = true;
@@ -389,8 +392,10 @@ public abstract class HeadlessCryptoScanner {
 		if(useProcessDir){
 		    Options.v().set_process_dir(Arrays.asList(applicationClassPath().split(File.pathSeparator)));
 		}else{
-		    System.out.println("In cogni setting the arg class: "+ argClass);
-                    Options.v().setArgClass(argClass);
+			for(String appClass : allclasses){
+				Options.v().addArgClass(appClass);
+			}
+			
 		}
 
 		Options.v().set_include(getIncludeList());
