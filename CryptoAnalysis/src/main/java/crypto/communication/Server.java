@@ -39,7 +39,6 @@ public class Server {
     private ServerSocket serverSocket;
 	private DataOutputStream out;
 	private BufferedReader in;
-	//private DataInputStream in;
 	private boolean oneRunDone = false;
 
 	//for the agent
@@ -50,7 +49,7 @@ public class Server {
 	private CommandLine cogniOptions;
     private CommandLine differOptions;
 	private ArrayList<String> patchNames;
-
+	private static List<String> allclasses = new ArrayList<String>();
 	
 	private List<String> patchGeneratedClassesRedefs = new ArrayList<String>();
 	private List<String> patchGeneratedClassesHosts = new ArrayList<String>();
@@ -67,6 +66,10 @@ public class Server {
 	public void setDifferOptions(CommandLine options){
 		differOptions = options;
     }
+
+	public static List<String> getAll(){
+		return allclasses;
+	}
 	
     public void start(int port, List<CryptSLRule> rules, ArrayList<String> patches) throws Exception{
 
@@ -77,6 +80,7 @@ public class Server {
 		List<String> ruleNames = reorderSeeds(rules);
 		
 		serverSocket = new ServerSocket(port);
+		serverSocket.setSoTimeout(300000); //5min timeout, but its on accept...
 		System.out.println("");
 		System.out.println("-----------------------------------");
 		System.out.println("COGNISERVER: Starting up the server, waiting for client!");
@@ -84,7 +88,6 @@ public class Server {
 		clientSocket = serverSocket.accept();
 		out = new DataOutputStream(clientSocket.getOutputStream());
 		in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-		//in = new DataInputStream(clientSocket.getInputStream());
 		
 		System.out.println("COGNISERVER: Client accepted");
         String inputLine;
@@ -106,22 +109,46 @@ public class Server {
         System.out.println("-----------------------------------");
 		sendSeeds(ruleNames);
 	} else if("INITANALYSIS".equals(input)){
+		allclasses.clear(); //for each request have a fresh set
+		
 		System.out.println("-----------------------------------");
         System.out.println("COGNISERVER: Recieved this input from client: "+inputLine);
         System.out.println("-----------------------------------");
+		long time = System.currentTimeMillis();
+		System.out.println("COGNISERVER:  Recieved this input at : "+ TimeUnit.MILLISECONDS.toSeconds(time) +" sec and "+ (TimeUnit.MILLISECONDS.toMillis(time) - TimeUnit.SECONDS.toMillis(TimeUnit.MILLISECONDS.toSeconds(time))) + "millisec.");
+		System.out.println("COGNISERVER:  Recieved this input at (total ms): "+time);
 		//this is a terrible protocol usage, true
-		int len = 6;
-		char[] cbuf = new char[len];
-		in.read(cbuf, 0 , len);
+		//	int len = 6;
+		//char[] cbuf = new char[len];
+		//in.read(cbuf, 0 , len);
+
 		// todo refactor the above, someday.
-		if((input = in.readLine()) != null){
-			//temp trust in ourselves for passing classname as next line
-			String mainClass = input.trim().replaceAll("\\/", ".");
+		while(!(input = in.readLine()).equals("ENDCLASSES")){
+			//	in.read(cbuf, 0 , len);
+			if(input != null){
+				System.out.println("COGNISERVER: Recieved this classname from client: "+input);
+				String name = input.trim().replaceAll("\\/", ".");
+				if(!allclasses.contains(name)){
+					allclasses.add(name);
+				}
+			}
+		}
+
+		if(allclasses.size() != 0){
+		//temp trust in ourselves for passing main first
+		String mainClass = allclasses.get(0);
 			System.out.println("COGNISERVER: Recieved this input from client as classname: "+mainClass);
-			if(patchNames.contains(mainClass) && !finishedNames.contains(mainClass)){
+			List<String> overlap = new ArrayList<String>();
+			for(String cname : allclasses){
+				overlap.add(cname);
+			}
+			overlap.retainAll(patchNames);
+			//TODO improve the logic of what we are ok with redefining (do we want to check if any in new set has?)
+			if(overlap.size() != 0 && !finishedNames.contains(mainClass)){				
+				System.out.println("COGNISERVER: using these classes for the analysis: "+ allclasses);
 				boolean foundErrors = initAnalysis(mainClass, true);
 				if(foundErrors){
-					runPatchAdapter(mainClass);
+					runPatchAdapter(mainClass, allclasses);
 					sendFix();
 					finishedNames.add(mainClass); //just for now we want to avoid doing the same one twice
 					TimeUnit.SECONDS.sleep(60); //also just for eval
@@ -144,7 +171,7 @@ public class Server {
 		System.out.println("-----------------------------------");
 		System.out.println("COGNISERVER: sending the fix...");
 		
-		int port = 38401;
+		int port = 49153;
 		agentClient = new Socket("127.0.0.1", port);
 		dOut = new DataOutputStream(agentClient.getOutputStream());
 		ObjectOutputStream objOut = new ObjectOutputStream(agentClient.getOutputStream());
@@ -177,6 +204,9 @@ public class Server {
 		System.out.println("COGNISERVER: fix sent.");
 		System.out.println("-----------------------------------");
 
+		//TODO put these somewhere safe, if we implement multiple patch per interaction ability
+		agentClient.close();
+		dOut.close(); //not ideal, but for exp setup only
 	}
 	
 	private ArrayList<HashMap<Class, byte[]>> readDefsFromDir(String strdir){
@@ -317,7 +347,7 @@ public class Server {
 		return false;
     }
 	
-	private void runPatchAdapter(String mainClass){
+	private void runPatchAdapter(String mainClass, List<String> allclasses){
 		String cpplaceholder = null;
 		String mainclassplaceholder = null;
 		String redefdirplaceholder = null;
@@ -331,7 +361,7 @@ public class Server {
 		if(differOptions.hasOption("redefcp")){
 			redefdirplaceholder = differOptions.getOptionValue("redefcp");
 		}
-		String[] differArgs = {"-cp", cpplaceholder, "-w", "-firstDest", Paths.get("").toAbsolutePath().toString()+"/renamedOriginals", "-altDest", "adapterOutput", "-redefcp", redefdirplaceholder, "-runRename", "true", "-mainClass", mainClass, "-originalclasslist", Paths.get("").toAbsolutePath().toString() + "/" + mainClass + ".originalclasses.out", "Example"};
+		String[] differArgs = {"-cp", cpplaceholder, "-w", "-firstDest", Paths.get("").toAbsolutePath().toString()+"/renamedOriginals", "-altDest", "adapterOutput", "-redefcp", redefdirplaceholder, "-runRename", "true", "-mainClass", mainClass, "Example"};
 		try{
 			System.out.println("COGNISERVER: these are args to semantic differ from cogni: "+Arrays.toString(differArgs));
 			//have to fix some settings in soot from cogni run
@@ -340,6 +370,7 @@ public class Server {
 			Transform ifds = PackManager.v().getPack("wjtp").get("wjtp.ifds");
 			PackManager.v().getPack("jap").remove("jap.myTransform");
 			PackManager.v().getPack("wjtp").remove("wjtp.ifds");
+			SemanticDiffer.setClasses(allclasses);
 			SemanticDiffer.main(differArgs);
 			patchGeneratedClassesRedefs = SemanticDiffer.getGeneratedClassesRedefs();
 			patchGeneratedClassesHosts = SemanticDiffer.getGeneratedClassesHosts();
@@ -356,9 +387,7 @@ public class Server {
 		System.out.println("COGNISERVER:  closing connection.");
 		in.close();
         out.close();
-		dOut.close();
-        clientSocket.close();
+		clientSocket.close();
         serverSocket.close();
-		agentClient.close();
     }
 }
