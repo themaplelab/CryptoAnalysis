@@ -92,7 +92,7 @@ public class Server {
 		System.out.println("COGNISERVER: Client accepted");
         String inputLine;
         while ((inputLine = in.readLine()) != null) {
-        if ("END".equals(inputLine) || oneRunDone) {
+        if ("END".equals(inputLine)) {
 			stop();
             break;
          }
@@ -128,7 +128,7 @@ public class Server {
 			if(input != null){
 				System.out.println("COGNISERVER: Recieved this classname from client: "+input);
 				String name = input.trim().replaceAll("\\/", ".");
-				if(!allclasses.contains(name)){
+				if(!allclasses.contains(name) && !name.equals("")){
 					allclasses.add(name);
 				}
 			}
@@ -144,10 +144,10 @@ public class Server {
 			}
 			overlap.retainAll(patchNames);
 			//TODO improve the logic of what we are ok with redefining (do we want to check if any in new set has?)
-			if(overlap.size() != 0 && !finishedNames.contains(mainClass)){				
+			if(!finishedNames.contains(mainClass)){				
 				System.out.println("COGNISERVER: using these classes for the analysis: "+ allclasses);
 				boolean foundErrors = initAnalysis(mainClass, true);
-				if(foundErrors){
+				if(overlap.size() != 0 && foundErrors){
 					runPatchAdapter(mainClass, allclasses);
 					sendFix();
 					finishedNames.add(mainClass); //just for now we want to avoid doing the same one twice
@@ -361,7 +361,7 @@ public class Server {
 		if(differOptions.hasOption("redefcp")){
 			redefdirplaceholder = differOptions.getOptionValue("redefcp");
 		}
-		String[] differArgs = {"-cp", cpplaceholder, "-w", "-firstDest", Paths.get("").toAbsolutePath().toString()+"/renamedOriginals", "-altDest", "adapterOutput", "-redefcp", redefdirplaceholder, "-runRename", "true", "-mainClass", mainClass, "Example"};
+		String[] differArgs = {"-cp", cpplaceholder, "-w", "-firstDest", Paths.get("").toAbsolutePath().toString()+"/renamedOriginals", "-altDest", "adapterOutput", "-redefcp", redefdirplaceholder, "-runRename", "true", "-mainClass", mainClass};
 		try{
 			System.out.println("COGNISERVER: these are args to semantic differ from cogni: "+Arrays.toString(differArgs));
 			//have to fix some settings in soot from cogni run
