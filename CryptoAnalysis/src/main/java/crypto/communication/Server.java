@@ -1,5 +1,6 @@
 package crypto.communication;
 
+
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +59,7 @@ public class Server {
 
 
 	private ArrayList<String> finishedNames = new ArrayList<String>();
+	private ArrayList<String> sentPatchNames = new ArrayList<String>();
 	
 	public void setCogniOptions(CommandLine options){
 		cogniOptions = options;
@@ -144,13 +146,13 @@ public class Server {
 			}
 			overlap.retainAll(patchNames);
 			//TODO improve the logic of what we are ok with redefining (do we want to check if any in new set has?)
-			if(!finishedNames.contains(mainClass)){				
+			if(!finishedNames.contains(mainClass) && !ruleNames.contains(mainClass)){				
 				System.out.println("COGNISERVER: using these classes for the analysis: "+ allclasses);
 				boolean foundErrors = initAnalysis(mainClass, true);
 				if(overlap.size() != 0 && foundErrors){
 					runPatchAdapter(mainClass, allclasses);
 					sendFix();
-					finishedNames.add(mainClass); //just for now we want to avoid doing the same one twice
+					finishedNames.add(mainClass); //just for now we want to avoid analysing same one as main
 					TimeUnit.SECONDS.sleep(60); //also just for eval
 					initAnalysis(mainClass, false); //this call is just for EVAL purposes
 				}
@@ -191,6 +193,7 @@ public class Server {
             objOut.writeInt(newClasses.get(cls).length);
             objOut.write(newClasses.get(cls));
             objOut.writeUTF(cls.getName());
+			sentPatchNames.add(cls.getName());
         }
 		
 		objOut.writeInt(patch.keySet().size());
@@ -199,6 +202,7 @@ public class Server {
 			objOut.writeInt(patch.get(cls).length);
 			objOut.write(patch.get(cls));
 			objOut.writeObject(cls);
+			sentPatchNames.add(cls.getName());
 		}
 		objOut.flush();
 		System.out.println("COGNISERVER: fix sent.");
@@ -217,23 +221,28 @@ public class Server {
 		try {
 
 			for(String fqncls : patchGeneratedClassesRedefs){
-				System.out.println("Reading class: " + fqncls);
-				String fullClassname = strdir+fqncls.replace(".","/")+".class";
-				System.out.println("Using full path: "+ fullClassname);
-				byte[] classBytes= Files.readAllBytes(Paths.get(fullClassname));
-				System.out.println("using classname: "+ fqncls);
-				Class cls = Class.forName(fqncls);
-				cdfredefs.put(cls, classBytes);
+				//TODO add a map of who this is being sent to, not just assume same connection
+				if(!sentPatchNames.contains(fqncls)){ //dont resend same patch item
+					System.out.println("Reading class: " + fqncls);
+					String fullClassname = strdir+fqncls.replace(".","/")+".class";
+					System.out.println("Using full path: "+ fullClassname);
+					byte[] classBytes= Files.readAllBytes(Paths.get(fullClassname));
+					System.out.println("using classname: "+ fqncls);
+					Class cls = Class.forName(fqncls);
+					cdfredefs.put(cls, classBytes);
+				}
 			}
 
 			for(String fqncls : patchGeneratedClassesHosts){
-                System.out.println("Reading class: " + fqncls);
-                String fullClassname = strdir+fqncls.replace(".","/")+".class";
-                System.out.println("Using full path: "+ fullClassname);
-                byte[] classBytes= Files.readAllBytes(Paths.get(fullClassname));
-                System.out.println("using classname: "+ fqncls);
-                Class cls = Class.forName(fqncls);
-                cdfnewclasses.put(cls, classBytes);
+				if(!sentPatchNames.contains(fqncls)){
+					System.out.println("Reading class: " + fqncls);
+					String fullClassname = strdir+fqncls.replace(".","/")+".class";
+					System.out.println("Using full path: "+ fullClassname);
+					byte[] classBytes= Files.readAllBytes(Paths.get(fullClassname));
+					System.out.println("using classname: "+ fqncls);
+					Class cls = Class.forName(fqncls);
+					cdfnewclasses.put(cls, classBytes);
+				}
             }
 			
 		} catch (Exception e){
