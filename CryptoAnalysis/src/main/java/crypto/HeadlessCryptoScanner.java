@@ -37,7 +37,7 @@ import crypto.reporting.CSVReporter;
 import crypto.reporting.CommandLineReporter;
 import crypto.reporting.ErrorMarkerListener;
 import crypto.reporting.SARIFReporter;
-import crypto.rules.CryptSLRule;
+import crypto.rules.CrySLRule;
 import crypto.communication.Server;
 import ideal.IDEALSeedSolver;
 import soot.Body;
@@ -64,7 +64,7 @@ public abstract class HeadlessCryptoScanner {
 	private static final Logger LOGGER = LoggerFactory.getLogger(HeadlessCryptoScanner.class);
 	private static boolean cacheSrc = false;
 	private	static boolean cacheSrcOnly = false;
-	private static List<CryptSLRule> rules;
+	private static List<CrySLRule> rules;
     private static boolean useProcessDir = true;
     private static String argClass;
 	private static List<String> allclasses; 

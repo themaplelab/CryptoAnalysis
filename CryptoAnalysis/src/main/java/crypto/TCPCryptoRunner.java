@@ -16,14 +16,16 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.ParseException;
 import crypto.analysis.CrySLRulesetSelector;
-import crypto.rules.CryptSLRule;
+import crypto.rules.CrySLRule;
 import differ.RelaxedParser;
 import differ.SemanticOptions;
+
+import crypto.analysis.CrySLRulesetSelector.RuleFormat;
 
 public class TCPCryptoRunner {
 
     private static int port = 38401;
-	private static List<CryptSLRule> rules;
+	private static List<CrySLRule> rules;
 	private static CommandLine cogniOptions;
 	private static CommandLine differOptions;
 	
@@ -42,7 +44,7 @@ public class TCPCryptoRunner {
 		//TODO add no option provided handling
 		if (cogniOptions.hasOption("rulesDir")) {
             String resourcesPath = cogniOptions.getOptionValue("rulesDir");
-            rules = CrySLRulesetSelector.makeFromPath(new File(resourcesPath));
+            rules = CrySLRulesetSelector.makeFromPath(new File(resourcesPath), RuleFormat.SOURCE);
         }
 		
 		//will automatically setup as server, no checking of args

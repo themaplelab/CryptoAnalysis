@@ -22,7 +22,7 @@ import java.io.ObjectOutputStream;
 import java.lang.String;
 import java.net.ServerSocket;    
 import crypto.HeadlessCryptoScanner;
-import crypto.rules.CryptSLRule;
+import crypto.rules.CrySLRule;
 
 import java.util.concurrent.TimeUnit;
 
@@ -73,7 +73,7 @@ public class Server {
 		return allclasses;
 	}
 	
-    public void start(int port, List<CryptSLRule> rules, ArrayList<String> patches) throws Exception{
+    public void start(int port, List<CrySLRule> rules, ArrayList<String> patches) throws Exception{
 
 		patchNames = patches; 
 		System.out.println("COGNISERVER: using list of patches that are currently available: "+ patchNames);
@@ -259,7 +259,9 @@ public class Server {
 		System.out.println("COGNISERVER: sending this many seeds to read: "+ rules.size());
 		TimeUnit.SECONDS.sleep(3);
 		out.writeInt(rules.size());
+		
 		for (String rule : rules) {
+			System.out.println("COGNISERVER: sent seed: "+ rule.replace(".", "/"));
 			//the strings in sigs in the jit will contain / not . in package names
 			out.writeUTF(rule.replace(".", "/"));
 		}
@@ -269,7 +271,7 @@ public class Server {
 
 	//this is based on heurisitics
 	//TODO refactor, this could be better
-	private List<String> reorderSeeds(List<CryptSLRule> rules){
+	private List<String> reorderSeeds(List<CrySLRule> rules){
 		//first put all class names into array
 		List<String> theImportant = new ArrayList(Arrays.asList(new String[rules.size()]));
 
@@ -299,9 +301,9 @@ public class Server {
 		return theImportant;
 	}
 	
-	private void printClasses(List<CryptSLRule> rules){
+	private void printClasses(List<CrySLRule> rules){
         System.out.println("COGNISERVER: printing the classes that we have specs for");
-		for (CryptSLRule rule : rules) {
+		for (CrySLRule rule : rules) {
 			System.out.println(rule.getClassName());
         }
     }
