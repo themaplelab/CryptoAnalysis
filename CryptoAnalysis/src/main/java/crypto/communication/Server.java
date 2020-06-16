@@ -130,7 +130,8 @@ public class Server {
 			if(input != null){
 				System.out.println("COGNISERVER: Recieved this classname from client: "+input);
 				String name = input.trim().replaceAll("\\/", ".");
-				if(!allclasses.contains(name) && !name.equals("")){
+				//like a prefilter on the exclude list...
+				if(!allclasses.contains(name) && !name.equals("") && !ruleNames.contains(name)){
 					allclasses.add(name);
 				}
 			}
